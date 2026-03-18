@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block hero %}
+<!-- No hero on login page -->
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Add Product</h2>
+
+    <!-- Show messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} mt-2">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label>Category</label>
+            <select name="category" class="form-control" required>
+                <option value="Phones">Phones</option>
+                <option value="Laptops">Laptops</option>
+                <option value="Accessories">Accessories</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label>Product Name</label>
+            <input name="name" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label>Description</label>
+            <textarea name="description" class="form-control"></textarea>
+        </div>
+
+        <div class="mb-3">
+            <label>Price</label>
+            <input name="price" type="number" step="0.01" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label>Product Image</label>
+            <input type="file" name="image_file" accept=".png, .jpg, .jpeg" class="form-control" required>
+        </div>
+
+        <button class="btn btn-success">Submit</button>
+    </form>
+</div>
+{% endblock %}

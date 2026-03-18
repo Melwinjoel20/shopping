@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block hero %}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+
+  <!-- Page Title -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+      {% if category %}
+        {{ category|title }} Products
+      {% else %}
+        All Products
+      {% endif %}
+    </h2>
+
+    <!-- Category Dropdown -->
+    <form method="GET" id="categoryForm">
+      <select id="categorySelect" class="form-select" style="width:200px;"
+              onchange="window.location.href=this.value;">
+        <option value="{% url 'products' %}" {% if not category %}selected{% endif %}>All Products</option>
+
+        {% for cat in categories %}
+          <option value="{% url 'products' cat %}" {% if category == cat %}selected{% endif %}>
+            {{ cat|title }}
+          </option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+
+  <!-- Product Grid -->
+  <div class="row">
+    {% for product in products %}
+    <div class="col-md-4 mb-4">
+      <div class="card shadow-sm border-0 rounded-3">
+
+        <img src="{{ product.image_url }}" class="card-img-top" style="height:220px; object-fit:cover;">
+
+        <div class="card-body">
+          <h5 class="card-title">{{ product.name }}</h5>
+          <p class="card-text text-muted small">{{ product.description }}</p>
+
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="fw-bold text-primary">€{{ product.price }}</span>
+
+            <!-- Add to Cart Button WITH PROPER DATA -->
+            <button 
+              class="btn btn-sm btn-primary rounded-pill add-to-cart-btn"
+              data-product-id="{{ product.product_id }}"
+              data-name="{{ product.name }}"
+              data-price="{{ product.price }}"
+              data-image="{{ product.image }}"
+            >
+              Add to Cart
+            </button>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const ADD_TO_CART_URL = "{{ ADD_TO_CART_URL }}";
+const LOGIN_URL = "{% url 'login' %}";
+
+// his will become true if request.session["user_id"] exists
+const IS_LOGGED_IN = {% if request.session.user_id %}true{% else %}false{% endif %};
+
+document.addEventListener("click", async (e) => {
+    if (!e.target.classList.contains("add-to-cart-btn")) return;
+
+    const btn = e.target;
+
+    // If not logged in: stop and send to login page
+    if (!IS_LOGGED_IN) {
+        alert("Please log in to add items to your cart.");
+
+        const nextUrl = window.location.pathname + window.location.search;
+        window.location.href = LOGIN_URL + "?next=" + encodeURIComponent(nextUrl);
+        return;
+    }
+
+    // Only logged-in users reach here
+    const payload = {
+        user_id: "{{ request.session.user_id }}",  // no more guest123
+        product_id: btn.dataset.productId,
+        name: btn.dataset.name,
+        price: parseFloat(btn.dataset.price),
+        image: btn.dataset.image
+    };
+
+    btn.disabled = true;
+    btn.innerText = "Adding...";
+
+    try {
+        const res = await fetch(ADD_TO_CART_URL, {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": "Bearer {{ request.session.cognito_id_token }}"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        alert(data.message);
+
+    } catch (err) {
+        alert("Failed to add to cart!");
+    }
+
+    btn.disabled = false;
+    btn.innerText = "Add to Cart";
+});
+</script>
+{% endblock %}
+

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block hero %}{% endblock %}
+
+{% block content %}
+<div class="container mt-5 d-flex justify-content-center" style="min-height: 70vh;">
+    <div class="ec-register-card" style="width: 100%; max-width: 480px;">
+
+        <h3 class="text-center mb-3 ec-register-title">Verify Your Email</h3>
+        <p class="text-center text-muted mb-4">
+            We've sent a 6-digit code to <strong>{{ email }}</strong>. Enter it below to activate your EasyCart account.
+        </p>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} text-center ec-alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="ec-register-label">Verification Code</label>
+                <input type="text"
+                       name="code"
+                       class="form-control ec-register-input text-center"
+                       maxlength="6"
+                       required>
+            </div>
+
+            <button class="btn ec-btn-blue w-100 mt-3">Verify & Activate</button>
+        </form>
+
+    </div>
+</div>
+{% endblock %}

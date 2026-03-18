@@ -1,0 +1,339 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Bootstrap & Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+
+  <title>{% block title %}EasyCart Store{% endblock %}</title>
+
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      display: flex;
+      flex-direction: column;
+      background-color: #f7faff;
+      overflow-x: hidden;
+    }
+
+    a {
+      text-decoration: none;
+    }
+
+    .navbar-main {
+      background: linear-gradient(90deg, #ffffff, #f3f9ff);
+      border-bottom: 1px solid #d0e1f9;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .navbar-brand-title {
+      font-weight: 700;
+      font-size: 1.6rem;
+      color: #0056b3 !important;
+      letter-spacing: 0.5px;
+    }
+
+    .navbar-link {
+      color: #0d47a1 !important;
+      margin: 0 10px;
+      transition: all 0.3s ease;
+      font-weight: 500;
+      position: relative;
+    }
+
+    .navbar-link:hover {
+      color: #007bff !important;
+    }
+
+    .navbar-link::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: -4px;
+      width: 0;
+      height: 2px;
+      background-color: #007bff;
+      transition: width 0.3s ease;
+    }
+
+    .navbar-link:hover::after {
+      width: 100%;
+    }
+
+    .hero-section {
+      width: 100%;
+      min-height: calc(100vh - 70px);
+      background: linear-gradient(rgba(255,255,255,0.8), rgba(255,255,255,0.9)),
+                  url("{% static 'images/base_image.jpg' %}") no-repeat center center;
+      background-size: cover;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #0d47a1;
+      text-align: center;
+      padding-top: 80px;
+    }
+
+    .hero-title {
+      font-size: 3.2rem;
+      font-weight: 700;
+      color: #0048a4;
+    }
+
+    .hero-subtitle {
+      font-size: 1.2rem;
+      color: #333;
+      margin-top: 12px;
+    }
+
+    .search-form-container {
+      max-width: 900px;
+      background-color: #ffffff;
+      border-radius: 1rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      padding: 2rem;
+    }
+
+    .form-label {
+      color: #003366;
+    }
+
+    .btn-blue-outline {
+      border-color: #007bff;
+      color: #007bff;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+
+    .btn-blue-outline:hover {
+      background-color: #007bff;
+      color: white;
+    }
+
+    .btn-blue-solid {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+
+    .btn-blue-solid:hover {
+      background-color: #0056b3;
+      transform: translateY(-1px);
+    }
+
+    main {
+      flex: 1 0 auto;
+    }
+
+    .content-wrapper {
+      width: 90%;
+      max-width: 1100px;
+      margin: 3rem auto;
+      background: #ffffff;
+      padding: 2.5rem;
+      border-radius: 15px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      border-top: 4px solid #007bff;
+    }
+
+    .section-title {
+      font-weight: 600;
+      color: #004085;
+      margin-bottom: 1rem;
+    }
+
+    .footer-main {
+      background: linear-gradient(90deg, #f8faff, #ecf4ff);
+      border-top: 1px solid #c8defc;
+      color: #333;
+      padding: 20px 0;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    .footer-main a {
+      color: #007bff;
+    }
+
+    .footer-main a:hover {
+      text-decoration: underline;
+    }
+    
+    .nav-login-btn {
+      background-color: #1d3557;       
+      color: #ffffff;
+      border: 2px solid transparent;
+      border-radius: 50px;
+      padding: 8px 18px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      transition: all 0.3s ease-in-out;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    /* Hover animation */
+    .nav-login-btn:hover {
+      background-color: #457b9d;       
+      border-color: #1d3557;
+      color: #ffffff;
+      transform: translateY(-3px);
+      box-shadow: 0px 4px 12px rgba(69, 123, 157, 0.35);
+    }
+    
+    /* Icon animation */
+    .nav-login-btn i {
+      transition: transform 0.3s ease-in-out;
+    }
+    
+    .nav-login-btn:hover i {
+      transform: translateX(3px);
+    }
+    
+    .brand-logo {
+      height: 40px;          
+      width: auto;           
+      object-fit: contain;   
+      display: block;
+  }
+
+  </style>
+</head>
+
+<body>
+  <nav class="navbar navbar-expand-lg fixed-top navbar-main">
+    <div class="container-fluid">
+  
+      <!-- Brand With S3 Logo -->
+      <a class="navbar-brand d-flex align-items-center gap-2" href="{% url 'home' %}">
+        <img src="{{ SIGNED_LOGO_URL }}" alt="EasyCart Logo" class="brand-logo">
+        <span class="navbar-brand-title">EasyCart</span>
+      </a>
+  
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent"
+              aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+  
+      <div class="collapse navbar-collapse justify-content-between" id="navbarContent">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link navbar-link" href="{% url 'home' %}">Home</a></li>
+          <li class="nav-item dropdown">
+            <a 
+                class="nav-link navbar-link dropdown-toggle" 
+                href="#" 
+                id="productsDropdown" 
+                role="button" 
+                data-bs-toggle="dropdown" 
+                aria-expanded="false"
+            >
+                Products
+            </a>
+          
+            <ul class="dropdown-menu shadow-sm" aria-labelledby="productsDropdown">
+          
+                <li>
+                  <a class="dropdown-item" href="{% url 'products' %}">All Products</a>
+                </li>
+          
+                <li><hr class="dropdown-divider"></li>
+          
+                {% for cat in categories %}
+                  <li>
+                    <a class="dropdown-item" href="{% url 'products' cat %}">
+                        {{ cat }}
+                    </a>
+                  </li>
+                {% endfor %}
+          
+            </ul>
+          </li>
+
+
+          <li class="nav-item"><a class="nav-link navbar-link" href="{% url 'offers' %}">Offers</a></li>
+          <li class="nav-item"><a class="nav-link navbar-link" href="{% url 'view_cart' %}">My Cart</a></li>
+          {% if request.session.cognito_groups and 'EasyCartAdmins' in request.session.cognito_groups %}
+        <li class="nav-item">
+            <a class="nav-link navbar-link fw-bold text-danger" href="{% url 'admin_dashboard' %}">
+                <i class="bi bi-shield-lock-fill"></i> Admin
+            </a>
+        </li>
+    {% endif %}
+        </ul>
+  
+        <div class="d-flex align-items-center">
+        
+            {% if request.session.user_name %}
+                <span class="navbar-text fw-semibold me-3" style="color: #1d3557;">
+                    {{ request.session.user_name }}
+                </span>
+        
+                <a href="{% url 'logout' %}" class="btn btn-outline-primary rounded-pill px-3">
+                    Logout
+                </a>
+        
+            {% else %}
+                <a href="{% url 'login' %}" class="nav-login-btn">
+                    <i class="bi bi-person-circle"></i>
+                    Sign In / Join
+                </a>
+            {% endif %}
+        
+        </div>
+    </div>
+  </nav>
+
+
+  {% block hero %}
+  <section class="hero-section text-center">
+    <h1 class="hero-title">Welcome to EasyCart</h1>
+    <p class="hero-subtitle">Your one-stop modern marketplace — shop smarter, faster, and easier.</p>
+
+    <div class="container mt-4">
+      <form method="GET" action="{% url 'products' %}" class="search-form-container row justify-content-center align-items-end mx-auto">
+        <div class="col-md-4 mb-3 mb-md-0">
+          <label class="form-label fw-semibold mb-1">Search Products</label>
+          <input type="text" id="search" name="search" placeholder="e.g., headphones, shoes..."
+                 class="form-control rounded-pill text-center shadow-sm">
+        </div>
+
+        <div class="col-md-2 mt-3 mt-md-0">
+          <button type="submit" class="btn btn-blue-solid fw-bold rounded-pill w-100 shadow-sm d-flex align-items-center justify-content-center">
+            <i class="bi bi-search me-2"></i> Search
+          </button>
+        </div>
+      </form>
+    </div>
+  </section>
+  {% endblock %}
+
+  <main>
+    {% block main_content %}
+    <div class="content-wrapper">
+      {% block content %}
+      <h2 class="section-title">About EasyCart</h2>
+      <p>EasyCart provides a seamless and secure shopping experience across all categories. 
+         Enjoy modern UI, smooth navigation, and exclusive offers every day.</p>
+      {% endblock %}
+    </div>
+    {% endblock %}
+  </main>
+
+  <footer class="footer-main">
+    <p>&copy; EasyCart</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

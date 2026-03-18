@@ -1,0 +1,40 @@
+{
+    "region": "us-east-1",
+    "user_pool_id": "us-east-1_Dhr3WDWcB",
+    "app_client_id": "1av6dbjng4m24uf9do9b3lkjaa",
+    "domain_url": "https://easycart-1763854700.auth.us-east-1.amazoncognito.com",
+    "s3_logo_url": "https://easycart-proj-nci.s3.us-east-1.amazonaws.com/images/EasyCartLogo.png",
+    "dev_mode": false,
+    "bucket_name": "easycart-proj-nci",
+    "s3_logo_path": "images/EasyCartLogo.png",
+    "local_logo_file": "infra/EasyCartLogo.png",
+    "product_images_folder": "infra/product_images",
+    "dynamodb_tables": [
+        "Phones",
+        "Laptops",
+        "Accessories"
+    ],
+    "cart_table": "UserCart",
+    "lambda_cart_endpoints": {
+        "add_to_cart": "https://344gww43b9.execute-api.us-east-1.amazonaws.com/add-to-cart",
+        "view_cart": "https://344gww43b9.execute-api.us-east-1.amazonaws.com/view-cart",
+        "remove_cart_item": "https://344gww43b9.execute-api.us-east-1.amazonaws.com/remove-cart-item",
+        "place_order": "https://344gww43b9.execute-api.us-east-1.amazonaws.com/place-order"
+    },
+    "orders_table": "Orders",
+    "sns_topic_arn": "arn:aws:sns:us-east-1:928302362931:EasyCartOrderNotifications",
+    "rate_limit": {
+        "login": {
+            "limit":3,
+            "window": 60
+        }
+    },
+    "RATE_LIMIT_TABLE": "RateLimits",
+    "app_client_secret": "iur1dqp21bjp0forq0mnj2okavncf4m3dojqh8u7hst2qvqeub0",
+    "admin_users_table": "EasyCartAdminUsers",
+    "eb_application_name": "easycart-proj-ebs",
+    "eb_environment_name": "easycart-proj-env",
+    "eb_cname_prefix": "easycart",
+    "eb_service_role": "LabRole",
+    "eb_instance_profile": "LabInstanceProfile"
+}

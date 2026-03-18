@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block hero %}
+{% endblock %}
+
+{% block content %}
+<style>
+    .ec-register-card {
+        background: #ffffff;
+        border-radius: 18px;
+        padding: 30px;
+        box-shadow: 0 5px 18px rgba(0, 0, 0, 0.08);
+        border-top: 4px solid #007bff;
+        animation: fadeIn 0.5s ease;
+    }
+
+    .ec-register-title {
+        color: #0048a4;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+
+    .ec-register-label {
+        font-weight: 600;
+        color: #003366;
+    }
+
+    .ec-register-input {
+        border-radius: 12px;
+        padding: 12px;
+        border: 1px solid #bcd2f1;
+        transition: all 0.3s ease;
+    }
+
+    .ec-register-input:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 6px rgba(0, 123, 255, 0.3);
+    }
+
+    .ec-btn-blue {
+        background-color: #007bff;
+        color: #fff;
+        font-weight: 600;
+        padding: 12px;
+        border-radius: 25px;
+        border: none;
+        transition: all 0.3s ease;
+    }
+
+    .ec-btn-blue:hover {
+        background-color: #0056b3;
+        transform: translateY(-2px);
+    }
+
+    .ec-alert {
+        border-radius: 12px;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    /* Fade-in animation */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+
+<div class="container mt-5 d-flex justify-content-center" style="min-height: 70vh;">
+    <div class="ec-register-card" style="width: 100%; max-width: 480px;">
+
+        <h3 class="text-center mb-4 ec-register-title">Create Your Account</h3>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} text-center ec-alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="POST" autocomplete="off">
+            {% csrf_token %}
+
+            <div class="mb-3">
+                <label class="ec-register-label">Name</label>
+                <input type="text" name="name" class="form-control ec-register-input" required autocomplete="new-name">
+            </div>
+
+            <div class="mb-3">
+                <label class="ec-register-label">Email</label>
+                <input type="email" name="email" class="form-control ec-register-input" required autocomplete="new-email">
+            </div>
+
+            <div class="mb-3">
+                <label class="ec-register-label">Password</label>
+                <input type="password" name="password" class="form-control ec-register-input" required autocomplete="new-password">
+                <small class="text-muted">Must include uppercase, lowercase, number, and symbol.</small>
+            </div>
+
+            <button class="btn ec-btn-blue w-100 mt-3">Create Account</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block hero %}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <h2 class="mb-3">Manage Products</h2>
+
+    {% if messages %}
+        {% for msg in messages %}
+            <div class="alert alert-{{ msg.tags }}">{{ msg }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <table class="table table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Category</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Image Key</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for p in products %}
+            <tr>
+                <td>{{ p.category }}</td>
+                <td>{{ p.name }}</td>
+                <td>{{ p.price }}</td>
+                <td>{{ p.image }}</td>
+
+                <td>
+                    <a href="{% url 'admin_delete_product' p.category p.product_id %}"
+                       class="btn btn-sm btn-danger"
+                       onclick="return confirm('Delete this product?');">
+                        Delete
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+{% endblock %}

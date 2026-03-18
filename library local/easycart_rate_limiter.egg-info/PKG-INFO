@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: easycart-rate-limiter
+Version: 0.2.0
+Summary: EasyCart Rate Limiter
+Home-page: https://github.com/Melwinjoel20/CPP/tree/main/EasyCart/easycart_rate_limiter
+Author: Melwin
+Author-email: melwinpintoir@gmail.com
+License: MIT
+Requires-Python: >=3.7
+Description-Content-Type: text/markdown
+Dynamic: author-email
+Dynamic: home-page
+Dynamic: requires-python

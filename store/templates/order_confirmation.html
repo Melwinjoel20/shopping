@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block hero %}{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+
+    <div class="card shadow-sm p-5">
+
+        <h2 class="fw-bold text-success mb-3">🎉 Order Confirmed!</h2>
+
+        <p class="fs-5">
+            Thank you for your purchase!  
+            Your order has been successfully placed.
+        </p>
+
+        <p class="mt-3">
+            <strong>Order ID:</strong> {{ order_id }}
+        </p>
+
+        <p class="mt-2">
+            A confirmation email has been sent to your email address.
+        </p>
+
+        <a href="/store/products/" class="btn btn-primary mt-4">
+            Continue Shopping
+        </a>
+
+    </div>
+
+</div>
+{% endblock %}

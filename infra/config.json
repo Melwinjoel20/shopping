@@ -1,11 +1,11 @@
 {
     "region": "us-east-1",
-    "user_pool_id": "us-east-1_Dhr3WDWcB",
-    "app_client_id": "1av6dbjng4m24uf9do9b3lkjaa",
-    "domain_url": "https://easycart-1763854700.auth.us-east-1.amazoncognito.com",
-    "s3_logo_url": "https://easycart-proj-nci.s3.us-east-1.amazonaws.com/images/EasyCartLogo.png",
+    "user_pool_id": "us-east-1_D1lmEyW2b",
+    "app_client_id": "39d1sdgv3nprjd2jgc8ed3lk2a",
+    "domain_url": "https://easycart-1773850121.auth.us-east-1.amazoncognito.com",
+    "s3_logo_url": "https://easycart1-proj-nci.s3.us-east-1.amazonaws.com/images/EasyCartLogo.png",
     "dev_mode": false,
-    "bucket_name": "easycart-proj-nci",
+    "bucket_name": "easycart1-proj-nci",
     "s3_logo_path": "images/EasyCartLogo.png",
     "local_logo_file": "infra/EasyCartLogo.png",
     "product_images_folder": "infra/product_images",
@@ -22,15 +22,15 @@
         "place_order": "https://344gww43b9.execute-api.us-east-1.amazonaws.com/place-order"
     },
     "orders_table": "Orders",
-    "sns_topic_arn": "arn:aws:sns:us-east-1:928302362931:EasyCartOrderNotifications",
+    "sns_topic_arn": "arn:aws:sns:us-east-1:637423279760:EasyCartOrderNotifications",
     "rate_limit": {
         "login": {
-            "limit":3,
+            "limit": 3,
             "window": 60
         }
     },
     "RATE_LIMIT_TABLE": "RateLimits",
-    "app_client_secret": "iur1dqp21bjp0forq0mnj2okavncf4m3dojqh8u7hst2qvqeub0",
+    "app_client_secret": "17l6nsl55omcpumhgp71bdldp22sstt26nel5d4go1jd32qanh75",
     "admin_users_table": "EasyCartAdminUsers",
     "eb_application_name": "easycart-proj-ebs",
     "eb_environment_name": "easycart-proj-env",

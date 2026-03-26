@@ -4,7 +4,7 @@ import json
 from botocore.exceptions import ClientError
 
 REGION = "us-east-1"
-BUCKET_NAME = "easycart-proj-nci"
+BUCKET_NAME = "easycart1-proj-nci"
 
 s3 = boto3.client("s3", region_name=REGION)
 

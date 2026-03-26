@@ -27,15 +27,17 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     '*',
-    '736b429f071c44fdabd7b5bd97020c4c.vfs.cloud9.us-east-1.amazonaws.com',
-    'localhost',
-    '127.0.0.1',
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    "https://736b429f071c44fdabd7b5bd97020c4c.vfs.cloud9.us-east-1.amazonaws.com",
+    "https://041835b73e534e10a7c5e7d362be8654.vfs.cloud9.us-east-1.amazonaws.com",
     "http://easycart-env-cli.eba-3amcndey.us-east-1.elasticbeanstalk.com",
     "https://easycart-env-cli.eba-3amcndey.us-east-1.elasticbeanstalk.com",
+    "http://localhost:8000",   # ← add this
+    "http://127.0.0.1:8000",   # ← add this
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+
 ]
 
 
@@ -164,7 +166,7 @@ COGNITO = {
 }
 
 # ====== S3 Settings ======
-S3_BUCKET = "easycart-proj-nci"
+S3_BUCKET = "easycart1-proj-nci"
 S3_REGION = infra_config.get("region")
 S3_LOGO_KEY = "images/EasyCartLogo.png"      # FIXED — must be an S3 key, not a URL
 

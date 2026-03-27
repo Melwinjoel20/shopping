@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block hero %}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">Weekly Sales Dashboard</h2>
+            <p class="text-muted mb-0">Sales analytics for the last 7 days</p>
+        </div>
+
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Admin Dashboard
+        </a>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 rounded-4 p-3 h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Orders</h6>
+                    <h2 class="fw-bold">{{ total_orders|default:"0" }}</h2>
+                    <p class="text-success mb-0">Orders placed this week</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 rounded-4 p-3 h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Revenue</h6>
+                    <h2 class="fw-bold">€{{ total_revenue|default:"0.00" }}</h2>
+                    <p class="text-primary mb-0">Revenue generated this week</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 rounded-4 p-3 h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Products Sold</h6>
+                    <h2 class="fw-bold">{{ total_items_sold|default:"0" }}</h2>
+                    <p class="text-warning mb-0">Items sold across all orders</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 rounded-4 p-3 h-100">
+                <div class="card-body">
+                    <h6 class="text-muted">Top Category</h6>
+                    <h2 class="fw-bold">{{ top_category|default:"N/A" }}</h2>
+                    <p class="text-danger mb-0">Best performing category</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Sales Breakdown -->
+    <div class="card shadow-sm border-0 rounded-4 p-4 mb-5">
+        <h4 class="mb-3">Daily Sales Breakdown</h4>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Day</th>
+                        <th>Orders</th>
+                        <th>Revenue (€)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if daily_sales %}
+                        {% for row in daily_sales %}
+                        <tr>
+                            <td>{{ row.day }}</td>
+                            <td>{{ row.orders }}</td>
+                            <td>€{{ row.revenue }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No sales data available.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Category Performance -->
+    <div class="card shadow-sm border-0 rounded-4 p-4 mb-5">
+        <h4 class="mb-3">Category Performance</h4>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Category</th>
+                        <th>Items Sold</th>
+                        <th>Revenue (€)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if category_sales %}
+                        {% for row in category_sales %}
+                        <tr>
+                            <td>{{ row.category }}</td>
+                            <td>{{ row.items_sold }}</td>
+                            <td>€{{ row.revenue }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No category sales data available.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Top Selling Products -->
+    <div class="card shadow-sm border-0 rounded-4 p-4 mb-5">
+        <h4 class="mb-3">Top Selling Products</h4>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Product Name</th>
+                        <th>Quantity Sold</th>
+                        <th>Revenue (€)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if top_products %}
+                        {% for row in top_products %}
+                        <tr>
+                            <td>{{ row.name }}</td>
+                            <td>{{ row.qty_sold }}</td>
+                            <td>€{{ row.revenue }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No product sales data available.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Technical Insight -->
+    <div class="card shadow-sm border-0 rounded-4 p-4 bg-light">
+        <h4 class="mb-3">Technical Insight</h4>
+        <p class="mb-0">
+            This weekly sales dashboard is designed to process order data using 
+            <strong>parallel analytics with Apache Spark</strong>. 
+            The system aggregates order-level sales information to generate 
+            category-wise performance, top-selling products, and weekly business insights.
+        </p>
+    </div>
+
+</div>
+{% endblock %}

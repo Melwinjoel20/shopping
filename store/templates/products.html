@@ -6,11 +6,45 @@
 {% block content %}
 <div class="container mt-5">
 
+  <style>
+    .product-img {
+      height: 240px;
+      width: 100%;
+      object-fit: contain;
+      background: #f8f9fa;
+      padding: 15px;
+      border-top-left-radius: 12px;
+      border-top-right-radius: 12px;
+    }
+
+    .product-card {
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .product-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    }
+
+    .card-title {
+      min-height: 50px;
+      font-weight: 600;
+    }
+
+    .card-text {
+      min-height: 45px;
+    }
+  </style>
+
   <!-- Page Title -->
   <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>
-      {% if category %}
-        {{ category|title }} Products
+      {% if category == "MenClothes" %}
+        Men Clothes
+      {% elif category == "WomenClothes" %}
+        Women Clothes
+      {% elif category == "KidsClothes" %}
+        Kids Clothes
       {% else %}
         All Products
       {% endif %}
@@ -20,11 +54,21 @@
     <form method="GET" id="categoryForm">
       <select id="categorySelect" class="form-select" style="width:200px;"
               onchange="window.location.href=this.value;">
-        <option value="{% url 'products' %}" {% if not category %}selected{% endif %}>All Products</option>
+        <option value="{% url 'products' %}" {% if not category %}selected{% endif %}>
+          All Products
+        </option>
 
         {% for cat in categories %}
           <option value="{% url 'products' cat %}" {% if category == cat %}selected{% endif %}>
-            {{ cat|title }}
+            {% if cat == "MenClothes" %}
+              Men Clothes
+            {% elif cat == "WomenClothes" %}
+              Women Clothes
+            {% elif cat == "KidsClothes" %}
+              Kids Clothes
+            {% else %}
+              {{ cat|title }}
+            {% endif %}
           </option>
         {% endfor %}
       </select>
@@ -35,31 +79,43 @@
   <div class="row">
     {% for product in products %}
     <div class="col-md-4 mb-4">
-      <div class="card shadow-sm border-0 rounded-3">
+      <div class="card shadow-sm border-0 rounded-3 h-100 product-card">
 
-        <img src="{{ product.image_url }}" class="card-img-top" style="height:220px; object-fit:cover;">
+        {% if product.image_url %}
+          <img src="{{ product.image_url }}" class="card-img-top product-img" alt="{{ product.name }}">
+        {% else %}
+          <img src="{% static 'images/no-image.png' %}" class="card-img-top product-img" alt="No image available">
+        {% endif %}
 
-        <div class="card-body">
+        <div class="card-body d-flex flex-column">
           <h5 class="card-title">{{ product.name }}</h5>
           <p class="card-text text-muted small">{{ product.description }}</p>
 
-          <div class="d-flex justify-content-between align-items-center">
+          <!-- TEMP DEBUG: remove later -->
+          <p class="small text-danger mb-2">Category: {{ product.category }}</p>
+
+          <div class="mt-auto d-flex justify-content-between align-items-center">
             <span class="fw-bold text-primary">€{{ product.price }}</span>
 
-            <!-- Add to Cart Button WITH PROPER DATA -->
             <button 
               class="btn btn-sm btn-primary rounded-pill add-to-cart-btn"
               data-product-id="{{ product.product_id }}"
               data-name="{{ product.name }}"
               data-price="{{ product.price }}"
               data-image="{{ product.image }}"
+              data-category="{{ product.category|default:'General' }}"
             >
               Add to Cart
             </button>
-
           </div>
         </div>
 
+      </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+      <div class="alert alert-warning text-center">
+        No products found in this category.
       </div>
     </div>
     {% endfor %}
@@ -73,31 +129,35 @@
 const ADD_TO_CART_URL = "{{ ADD_TO_CART_URL }}";
 const LOGIN_URL = "{% url 'login' %}";
 
-// his will become true if request.session["user_id"] exists
 const IS_LOGGED_IN = {% if request.session.user_id %}true{% else %}false{% endif %};
+const USER_ID = "{% if request.session.user_id %}{{ request.session.user_id }}{% endif %}";
+const ID_TOKEN = "{% if request.session.cognito_id_token %}{{ request.session.cognito_id_token }}{% endif %}";
 
 document.addEventListener("click", async (e) => {
     if (!e.target.classList.contains("add-to-cart-btn")) return;
 
     const btn = e.target;
 
-    // If not logged in: stop and send to login page
+    console.log("FULL DATASET =", btn.dataset);
+
+    // Redirect to login if not logged in
     if (!IS_LOGGED_IN) {
         alert("Please log in to add items to your cart.");
-
         const nextUrl = window.location.pathname + window.location.search;
         window.location.href = LOGIN_URL + "?next=" + encodeURIComponent(nextUrl);
         return;
     }
 
-    // Only logged-in users reach here
     const payload = {
-        user_id: "{{ request.session.user_id }}",  // no more guest123
+        user_id: USER_ID,
         product_id: btn.dataset.productId,
         name: btn.dataset.name,
         price: parseFloat(btn.dataset.price),
-        image: btn.dataset.image
+        image: btn.dataset.image,
+        category: btn.dataset.category || "General"
     };
+
+    console.log("ADD TO CART PAYLOAD =", payload);
 
     btn.disabled = true;
     btn.innerText = "Adding...";
@@ -106,16 +166,22 @@ document.addEventListener("click", async (e) => {
         const res = await fetch(ADD_TO_CART_URL, {
             method: "POST",
             headers: { 
-              "Content-Type": "application/json",
-              "Authorization": "Bearer {{ request.session.cognito_id_token }}"
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + ID_TOKEN
             },
             body: JSON.stringify(payload)
         });
 
         const data = await res.json();
-        alert(data.message);
+
+        if (res.ok) {
+            alert(data.message || "Added to cart!");
+        } else {
+            alert(data.message || "Failed to add to cart.");
+        }
 
     } catch (err) {
+        console.error("Add to cart error:", err);
         alert("Failed to add to cart!");
     }
 
@@ -124,4 +190,3 @@ document.addEventListener("click", async (e) => {
 });
 </script>
 {% endblock %}
-

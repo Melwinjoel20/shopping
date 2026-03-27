@@ -10,16 +10,16 @@
     "local_logo_file": "infra/EasyCartLogo.png",
     "product_images_folder": "infra/product_images",
     "dynamodb_tables": [
-        "Phones",
-        "Laptops",
-        "Accessories"
+        "MenClothes",
+        "WomenClothes",
+        "KidsClothes"
     ],
     "cart_table": "UserCart",
     "lambda_cart_endpoints": {
-        "add_to_cart": "https://344gww43b9.execute-api.us-east-1.amazonaws.com/add-to-cart",
-        "view_cart": "https://344gww43b9.execute-api.us-east-1.amazonaws.com/view-cart",
-        "remove_cart_item": "https://344gww43b9.execute-api.us-east-1.amazonaws.com/remove-cart-item",
-        "place_order": "https://344gww43b9.execute-api.us-east-1.amazonaws.com/place-order"
+        "add_to_cart": "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/add-to-cart",
+        "view_cart": "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/view-cart",
+        "remove_cart_item": "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/remove-cart-item",
+        "place_order": "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/place-order"
     },
     "orders_table": "Orders",
     "sns_topic_arn": "arn:aws:sns:us-east-1:637423279760:EasyCartOrderNotifications",

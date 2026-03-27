@@ -1,142 +1,183 @@
 import boto3
-import json
 import os
+import json
 import uuid
 from botocore.exceptions import ClientError
+from decimal import Decimal
 
 CONFIG_PATH = "infra/config.json"
 
 
+# =========================
+# CONFIG
+# =========================
 def load_config():
-    if os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH) as f:
-            return json.load(f)
-    return {}
+    with open(CONFIG_PATH) as f:
+        return json.load(f)
 
 
-def save_config(data):
-    with open(CONFIG_PATH, "w") as f:
-        json.dump(data, f, indent=4)
-    print(" config.json updated")
+# =========================
+# CATEGORY MAPPING
+# =========================
+CATEGORY_MAP = {
+    "men": "MenClothes",
+    "women": "WomenClothes",
+    "kids": "KidsClothes"
+}
 
 
-def table_exists(dynamodb, table_name):
+# =========================
+# PARSE PRODUCT FROM FILENAME
+# =========================
+def parse_product(file_name):
+    name = file_name.rsplit(".", 1)[0]  # remove extension
+    parts = name.split("_")
+
+    if len(parts) < 3:
+        print(f"⚠ Skipping invalid filename: {file_name}")
+        return None
+
+    category_key = parts[0].lower()
+    price = parts[-1]
+
+    if category_key not in CATEGORY_MAP:
+        print(f"⚠ Unknown category: {file_name}")
+        return None
+
     try:
-        dynamodb.describe_table(TableName=table_name)
-        return True
-    except ClientError:
-        return False
+        price = int(price)
+    except:
+        print(f"⚠ Invalid price in: {file_name}")
+        return None
+
+    product_words = parts[1:-1]
+    product_name = " ".join(word.capitalize() for word in product_words)
+
+    return {
+        "category": CATEGORY_MAP[category_key],
+        "name": product_name,
+        "price": price,
+        "description": f"Premium {product_name.lower()}",
+        "image_file": file_name
+    }
 
 
+# =========================
+# S3 UPLOAD (SKIP IF EXISTS)
+# =========================
+def upload_product_images(bucket, region, folder):
+    s3 = boto3.client("s3", region_name=region)
+    uploaded = {}
+
+    for file_name in os.listdir(folder):
+        if not file_name.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+            continue
+
+        local_path = os.path.join(folder, file_name)
+        s3_key = f"product-images/{file_name}"
+
+        if file_name.endswith(".png"):
+            content_type = "image/png"
+        elif file_name.endswith(".webp"):
+            content_type = "image/webp"
+        else:
+            content_type = "image/jpeg"
+
+        try:
+            s3.head_object(Bucket=bucket, Key=s3_key)
+            print(f"⏭ Skipped (exists): {file_name}")
+
+        except ClientError as e:
+            if e.response["Error"]["Code"] == "404":
+                s3.upload_file(
+                    local_path,
+                    bucket,
+                    s3_key,
+                    ExtraArgs={"ContentType": content_type}
+                )
+                print(f"✔ Uploaded: {file_name}")
+            else:
+                raise e
+
+        uploaded[file_name] = s3_key
+
+    return uploaded
+
+
+# =========================
+# DYNAMODB HELPERS
+# =========================
 def create_table_if_needed(region, table_name):
     dynamodb = boto3.client("dynamodb", region_name=region)
 
-    if table_exists(dynamodb, table_name):
-        print(f" Table already exists: {table_name}")
-        return
-
-    print(f"\n[1] Creating table: {table_name} ...")
-
-    dynamodb.create_table(
-        TableName=table_name,
-        AttributeDefinitions=[
-            {"AttributeName": "product_id", "AttributeType": "S"},
-        ],
-        KeySchema=[
-            {"AttributeName": "product_id", "KeyType": "HASH"},
-        ],
-        BillingMode="PAY_PER_REQUEST"
-    )
-
-    print("Waiting for table to be ACTIVE...")
-    waiter = dynamodb.get_waiter("table_exists")
-    waiter.wait(TableName=table_name)
-
-    print(f" Created table: {table_name}")
-
-
-def seed_data(region, table_name, products):
-    print(f"\n[2] Seeding products into {table_name}...")
-
-    db = boto3.resource("dynamodb", region_name=region)
-    table = db.Table(table_name)
-
-    for p in products:
-        p_id = str(uuid.uuid4())
-
-        table.put_item(
-            Item={
-                "product_id": p_id,
-                "name": p["name"],
-                "description": p["description"],
-                "price": p["price"],
-                "image": p["image"]
-            }
+    try:
+        dynamodb.describe_table(TableName=table_name)
+        print(f"✔ Table exists: {table_name}")
+    except ClientError:
+        print(f"🛠 Creating table: {table_name}")
+        dynamodb.create_table(
+            TableName=table_name,
+            AttributeDefinitions=[
+                {"AttributeName": "product_id", "AttributeType": "S"},
+            ],
+            KeySchema=[
+                {"AttributeName": "product_id", "KeyType": "HASH"},
+            ],
+            BillingMode="PAY_PER_REQUEST"
         )
 
-        print(f" Added: {p['name']} → {p_id}")
+        waiter = dynamodb.get_waiter("table_exists")
+        waiter.wait(TableName=table_name)
+        print(f"✔ Created table: {table_name}")
 
 
+def insert_product(region, table_name, product, image_key):
+    dynamodb = boto3.resource("dynamodb", region_name=region)
+    table = dynamodb.Table(table_name)
+
+    table.put_item(
+        Item={
+            "product_id": str(uuid.uuid4()),
+            "name": product["name"],
+            "description": product["description"],
+            "price": product["price"],
+            "image": image_key
+        }
+    )
+
+    print(f"✔ Inserted: {product['name']} → {table_name}")
+
+
+# =========================
+# MAIN
+# =========================
 def main():
-    print(" EasyCart DynamoDB Setup — Multi-table Mode")
-
     config = load_config()
-    region = config.get("region", "us-east-1")
 
-    # 3 tables
-    TABLES = {
-        "Phones": [
-            {
-                "name": "iPhone 14 Pro",
-                "description": "Apple A16 Bionic, 6.1-inch OLED Display",
-                "price": 1099,
-                "image": "https://via.placeholder.com/300"
-            },
-            {
-                "name": "Samsung Galaxy S23",
-                "description": "Snapdragon 8 Gen 2, Dynamic AMOLED",
-                "price": 999,
-                "image": "https://via.placeholder.com/300"
-            }
-        ],
+    region = config["region"]
+    bucket = config["bucket_name"]
+    folder = config["product_images_folder"]
 
-        "Laptops": [
-            {
-                "name": "MacBook Air M2",
-                "description": "Apple M2, 8GB RAM, 256GB SSD",
-                "price": 1199,
-                "image": "https://via.placeholder.com/300"
-            },
-            {
-                "name": "Dell XPS 13",
-                "description": "Intel i7 13th Gen, 16GB RAM",
-                "price": 1399,
-                "image": "https://via.placeholder.com/300"
-            }
-        ],
+    print("\n🚀 AUTO PRODUCT INGESTION STARTED\n")
 
-        "Accessories": [
-            {
-                "name": "AirPods Pro",
-                "description": "Active Noise Cancellation, Spatial Audio",
-                "price": 249,
-                "image": "https://via.placeholder.com/300"
-            },
-            {
-                "name": "Logitech MX Master 3",
-                "description": "Advanced Wireless Mouse",
-                "price": 99,
-                "image": "https://via.placeholder.com/300"
-            }
-        ]
-    }
+    uploaded = upload_product_images(bucket, region, folder)
 
-    # Create + Seed each table
-    for table_name, items in TABLES.items():
+    for file_name in uploaded:
+        product = parse_product(file_name)
+        if not product:
+            continue
+
+        table_name = product["category"]
         create_table_if_needed(region, table_name)
-        seed_data(region, table_name, items)
 
-    print("\n All DynamoDB tables created + seeded successfully!")
+        insert_product(
+            region,
+            table_name,
+            product,
+            uploaded[file_name]
+        )
+
+    print("\n🎉 AUTO IMPORT COMPLETE!\n")
 
 
 if __name__ == "__main__":

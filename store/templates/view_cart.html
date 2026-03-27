@@ -1,135 +1,125 @@
 {% extends "base.html" %}
 {% load static %}
-
 {% block hero %}{% endblock %}
-
 {% block content %}
-
 <div class="container mt-5">
-
   <h2 class="mb-4">🛒 Your Shopping Cart</h2>
-
-  <!-- Cart Items -->
   <div id="cart-container"></div>
-
-  <!-- Cart total -->
   <div id="cart-total" class="mt-4"></div>
-
-  <!-- Checkout Button -->
   <div id="checkout-section" class="mt-4" style="display:none;">
     <a href="{% url 'checkout' %}" class="btn btn-success btn-lg w-100">
       Proceed to Checkout
     </a>
   </div>
-
 </div>
-
 {% endblock %}
-
 {% block extra_scripts %}
 <script>
 const VIEW_CART_URL = "{{ VIEW_CART_URL }}";
 const REMOVE_URL = "{{ REMOVE_ITEM_URL }}";
-const LOGIN_URL = "{% url 'login' %}";
+const USER_ID = "{{ USER_ID }}";
+console.log("VIEW_CART_URL =", VIEW_CART_URL);
+console.log("USER_ID =", USER_ID);
+console.log("Full URL =", `${VIEW_CART_URL}?user_id=${encodeURIComponent(USER_ID)}`);
 
-
-
-// ✔ No separate constant → same pattern as product.html
 document.addEventListener("DOMContentLoaded", () => {
     loadCart();
 });
 
 async function loadCart() {
-
-    // ✔ Same header pattern as product.html
-    const res = await fetch(VIEW_CART_URL, {
-        method: "GET",
-        headers: {
-            "Authorization": "Bearer {{ request.session.cognito_id_token }}"
-        }
-    });
-
-    // CONSISTENT JWT ERROR HANDLING
-    if (res.status === 401) {
-        alert("Your session has expired. Please log in again.");
-        window.location.href = LOGIN_URL;
-        return;
-    }
-
-    const items = await res.json();
-
     const container = document.getElementById("cart-container");
     const totalDiv = document.getElementById("cart-total");
     const checkout = document.getElementById("checkout-section");
 
-    container.innerHTML = "";
+    container.innerHTML = `<div class="text-center py-4">Loading cart...</div>`;
     totalDiv.innerHTML = "";
     checkout.style.display = "none";
 
-    if (!items.length) {
+    if (!USER_ID) {
         container.innerHTML = `
-            <div class="alert alert-info text-center">
-                <strong>Your cart is empty!</strong><br>
-                Browse products and add items to your cart.
+            <div class="alert alert-warning text-center">
+                Please log in to view your cart.
             </div>`;
         return;
     }
 
-    let total = 0;
+    try {
+        const res = await fetch(`${VIEW_CART_URL}?user_id=${encodeURIComponent(USER_ID)}`);
+        const raw = await res.json();
 
-    items.forEach(item => {
-        total += item.price * (item.qty || 1);
+        let items = [];
+        if (raw.body) {
+            items = JSON.parse(raw.body);
+        } else if (Array.isArray(raw)) {
+            items = raw;
+        }
 
-        container.innerHTML += `
-            <div class="card mb-3 shadow-sm border-0 p-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="fw-bold">${item.name}</h5>
-                        <p class="text-muted small">€${item.price} × ${item.qty || 1}</p>
+        container.innerHTML = "";
+
+        if (!items.length) {
+            container.innerHTML = `
+                <div class="alert alert-info text-center">
+                    <strong>Your cart is empty!</strong><br>
+                    Browse products and add items to your cart.
+                </div>`;
+            return;
+        }
+
+        let total = 0;
+        items.forEach(item => {
+            const qty = Number(item.qty || 1);
+            const price = Number(item.price || 0);
+            total += price * qty;
+            container.innerHTML += `
+                <div class="card mb-3 shadow-sm border-0 p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="fw-bold">${item.name}</h5>
+                            <p class="text-muted small">€${price.toFixed(2)} × ${qty}</p>
+                            <p class="fw-semibold mb-0">Subtotal: €${(price * qty).toFixed(2)}</p>
+                        </div>
+                        <button 
+                            class="btn btn-danger btn-sm remove-item-btn"
+                            data-item-id="${item.item_id}"
+                        >Remove</button>
                     </div>
+                </div>`;
+        });
 
-                    <button 
-                        class="btn btn-danger btn-sm remove-item-btn"
-                        data-item-id="${item.item_id}"
-                    >Remove</button>
-                </div>
-            </div>
-        `;
-    });
+        totalDiv.innerHTML = `<h4 class="fw-bold">Total: €${total.toFixed(2)}</h4>`;
+        checkout.style.display = "block";
 
-    totalDiv.innerHTML = `
-        <h4 class="fw-bold">Total: €${total.toFixed(2)}</h4>
-    `;
-
-    checkout.style.display = "block";
+    } catch (err) {
+        console.error("LOAD CART ERROR =", err);
+        container.innerHTML = `
+            <div class="alert alert-danger text-center">
+                Failed to load cart. Please try again.
+            </div>`;
+    }
 }
 
-//  Remove item 
 document.addEventListener("click", async (e) => {
     if (!e.target.classList.contains("remove-item-btn")) return;
 
     const itemId = e.target.dataset.itemId;
+    const btn = e.target;
+    btn.disabled = true;
+    btn.innerText = "Removing...";
 
-    e.target.disabled = true;
-    e.target.innerText = "Removing...";
-
-    const res = await fetch(REMOVE_URL, {
-        method: "POST",
-        headers: { 
-            "Content-Type": "application/json",
-            "Authorization": "Bearer {{ request.session.cognito_id_token }}"
-        },
-        body: JSON.stringify({ item_id: itemId })
-    });
-
-    //  CONSISTENT JWT ERROR HANDLING
-    if (res.status === 401) {
-        alert("Your session has expired. Please log in again.");
-        window.location.href = LOGIN_URL;
-        return;
+    try {
+        const res = await fetch(REMOVE_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ item_id: itemId, user_id: USER_ID })
+        });
+        await loadCart();
+    } catch (err) {
+        console.error("REMOVE ERROR =", err);
+        alert("Failed to remove item.");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Remove";
     }
-
-    loadCart();
 });
 </script>
 {% endblock %}

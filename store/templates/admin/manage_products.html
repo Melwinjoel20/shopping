@@ -6,7 +6,12 @@
 {% block content %}
 <div class="container py-4">
 
-    <h2 class="mb-3">Manage Products</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Manage Products</h2>
+        <a href="{% url 'admin_add_product' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Add New Product
+        </a>
+    </div>
 
     {% if messages %}
         {% for msg in messages %}
@@ -14,36 +19,57 @@
         {% endfor %}
     {% endif %}
 
-    <table class="table table-bordered">
-        <thead class="table-dark">
-            <tr>
-                <th>Category</th>
-                <th>Name</th>
-                <th>Price</th>
-                <th>Image Key</th>
-                <th>Action</th>
-            </tr>
-        </thead>
+    {% if products %}
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle shadow-sm">
+            <thead class="table-dark">
+                <tr>
+                    <th>Category</th>
+                    <th>Name</th>
+                    <th>Price (€)</th>
+                    <th>Image Key</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
 
-        <tbody>
-            {% for p in products %}
-            <tr>
-                <td>{{ p.category }}</td>
-                <td>{{ p.name }}</td>
-                <td>{{ p.price }}</td>
-                <td>{{ p.image }}</td>
+            <tbody>
+                {% for p in products %}
+                <tr>
+                    <td>
+                        {% if p.category == "MenClothes" %}
+                            Men Clothes
+                        {% elif p.category == "WomenClothes" %}
+                            Women Clothes
+                        {% elif p.category == "KidsClothes" %}
+                            Kids Clothes
+                        {% else %}
+                            {{ p.category }}
+                        {% endif %}
+                    </td>
 
-                <td>
-                    <a href="{% url 'admin_delete_product' p.category p.product_id %}"
-                       class="btn btn-sm btn-danger"
-                       onclick="return confirm('Delete this product?');">
-                        Delete
-                    </a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                    <td>{{ p.name }}</td>
+                    <td>{{ p.price }}</td>
+                    <td>
+                        <small class="text-muted">{{ p.image }}</small>
+                    </td>
+
+                    <td>
+                        <a href="{% url 'admin_delete_product' p.category p.product_id %}"
+                           class="btn btn-sm btn-danger"
+                           onclick="return confirm('Delete this product?');">
+                            <i class="bi bi-trash"></i> Delete
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <div class="alert alert-info">
+            No products found.
+        </div>
+    {% endif %}
 
 </div>
 {% endblock %}

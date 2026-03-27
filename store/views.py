@@ -5,22 +5,26 @@ from django.contrib import messages
 from django.contrib.messages import get_messages
 from botocore.exceptions import ClientError
 from easycart_rate_limiter import check_rate_limit
+from botocore.config import Config
 import hmac
 import hashlib
 import base64
 
 
-
-# Home / Base view
+# =========================
+# Home / Base
+# =========================
 def base(request):
     return render(request, 'base.html')
 
+
 def home(request):
-    
     return render(request, 'home.html')
 
-# Helpers
 
+# =========================
+# Helpers
+# =========================
 def get_cognito_client():
     return boto3.client(
         "cognito-idp",
@@ -31,15 +35,10 @@ def get_cognito_client():
 def clear_messages(request):
     storage = get_messages(request)
     for _ in storage:
-        # iterating consumes them
         pass
 
 
 def get_secret_hash(username: str) -> str:
-    """
-    Compute SECRET_HASH for Cognito app clients that have a secret.
-    SECRET_HASH = base64(HMAC_SHA256(client_secret, username + client_id))
-    """
     client_id = settings.COGNITO["app_client_id"]
     client_secret = settings.COGNITO["app_client_secret"]
 
@@ -52,8 +51,9 @@ def get_secret_hash(username: str) -> str:
     return base64.b64encode(dig).decode("utf-8")
 
 
+# =========================
 # LOGIN
-
+# =========================
 def login_view(request):
     if request.method == "POST":
         email = request.POST.get("email", "").strip()
@@ -63,7 +63,6 @@ def login_view(request):
             messages.error(request, "Please enter email and password.")
             return redirect("login")
 
-        # Per-user rate limit
         key = f"login:{email}"
 
         allowed = check_rate_limit(
@@ -82,7 +81,6 @@ def login_view(request):
         client = get_cognito_client()
 
         try:
-            # ADMIN_USER_PASSWORD_AUTH + SECRET_HASH
             auth_response = client.admin_initiate_auth(
                 UserPoolId=settings.COGNITO["user_pool_id"],
                 ClientId=settings.COGNITO["app_client_id"],
@@ -135,20 +133,16 @@ def login_view(request):
             messages.error(request, f"Login failed: {str(e)}")
             return redirect("login")
 
-        #  If we reach here, password is correct and auth succeeded
         tokens = auth_response.get("AuthenticationResult", {})
         access_token = tokens.get("AccessToken")
         id_token = tokens.get("IdToken")
 
         if access_token:
             request.session["cognito_access_token"] = access_token
-            print("ACCESS TOKEN:", access_token)
 
         if id_token:
             request.session["cognito_id_token"] = id_token
-            print("ID TOKEN:", id_token)
 
-        # Fetch user details
         try:
             user = client.admin_get_user(
                 UserPoolId=settings.COGNITO["user_pool_id"],
@@ -173,22 +167,26 @@ def login_view(request):
         request.session["user_email"] = email
         request.session["user_name"] = full_name
         request.session["user_id"] = email
-        
+
         groups = get_user_groups(email)
         request.session["cognito_groups"] = groups
-        print("USER GROUPS:", groups)
 
         messages.success(request, f"Welcome, {full_name or email}!")
         if "EasyCartAdmins" in groups:
-            return redirect("admin_dashboard")  
+            return redirect("admin_dashboard")
+
+        next_url = request.GET.get("next")
+        if next_url:
+            return redirect(next_url)
+
         return redirect("home")
 
-    # GET
     return render(request, "login.html")
 
 
+# =========================
 # LOGOUT
-
+# =========================
 def logout_view(request):
     request.session.flush()
     clear_messages(request)
@@ -196,8 +194,9 @@ def logout_view(request):
     return redirect("login")
 
 
+# =========================
 # REGISTER
-
+# =========================
 def register(request):
     if request.method == "POST":
         name = request.POST.get("name", "").strip()
@@ -211,7 +210,6 @@ def register(request):
         client = get_cognito_client()
 
         try:
-            # Sign up – includes SECRET_HASH because client has secret
             resp = client.sign_up(
                 ClientId=settings.COGNITO["app_client_id"],
                 SecretHash=get_secret_hash(email),
@@ -222,9 +220,9 @@ def register(request):
                     {"Name": "name", "Value": name},
                 ],
             )
+
             print("SIGN UP RESP:", resp)
 
-            # DEV: auto-confirm
             if getattr(settings, "DEV_MODE", False):
                 try:
                     client.admin_confirm_sign_up(
@@ -239,7 +237,6 @@ def register(request):
                 except Exception as e:
                     messages.warning(request, f"Auto-confirm skipped: {e}")
 
-            #send OTP and redirect to verify page
             request.session["pending_email"] = email
             messages.success(
                 request,
@@ -270,8 +267,9 @@ def register(request):
     return render(request, "register.html")
 
 
-# VERIFY OTP (CONFIRM SIGNUP)
-
+# =========================
+# VERIFY OTP
+# =========================
 def verify_otp(request):
     email = request.session.get("pending_email")
 
@@ -315,17 +313,16 @@ def verify_otp(request):
             messages.error(request, "Could not verify your account. Please try again.")
             return render(request, "verify_otp.html", {"email": email})
 
-        # Success
         request.session.pop("pending_email", None)
         messages.success(request, "Your email is verified. You can now log in.")
         return redirect("login")
 
-    # GET
     return render(request, "verify_otp.html", {"email": email})
 
 
+# =========================
 # FORGOT PASSWORD
-
+# =========================
 def cognito_forgot_password(username: str):
     client = get_cognito_client()
     try:
@@ -349,7 +346,6 @@ def forgot_password(request):
             return redirect("forgot_password")
 
         res = cognito_forgot_password(username)
-        print("FORGOT PASSWORD RESPONSE:", res)
         if "error" in res:
             messages.error(request, res["error"])
             return redirect("forgot_password")
@@ -357,14 +353,13 @@ def forgot_password(request):
         request.session["reset_username"] = username
         messages.success(request, "OTP sent to your email.")
         return redirect("reset_password")
-        
 
     return render(request, "forgot_password.html")
-    print("FORGOT PASSWORD RESPONSE:", res)
 
 
-# RESET PASSWORD (CONFIRM FORGOT PASSWORD)
-
+# =========================
+# RESET PASSWORD
+# =========================
 def cognito_confirm_new_password(username: str, code: str, new_password: str):
     client = get_cognito_client()
     try:
@@ -411,79 +406,95 @@ def reset_password(request):
 
     return render(request, "reset_password.html")
 
+
+# =========================
+# PRODUCTS
+# =========================
 def get_all_categories():
-    return ["Phones", "Laptops", "Accessories"]  # Can be replaced with auto-detection later
-
-
-def generate_presigned_image(key):
-    s3 = boto3.client("s3", region_name=settings.S3_REGION)
-    return s3.generate_presigned_url(
-        ClientMethod="get_object",
-        Params={"Bucket": settings.S3_BUCKET, "Key": key},
-        ExpiresIn=3600  # 1 hour
-    )
-
-
+    return ["MenClothes", "WomenClothes", "KidsClothes"]
 
 
 def generate_presigned_image_url(key: str):
-    s3 = boto3.client("s3", region_name=settings.S3_REGION)
+    s3 = boto3.client(
+        "s3",
+        region_name=settings.S3_REGION,
+        config=Config(signature_version="s3v4")
+    )
 
     try:
         return s3.generate_presigned_url(
             ClientMethod="get_object",
             Params={"Bucket": settings.S3_BUCKET, "Key": key},
-            ExpiresIn=3600,   # 1 hour
+            ExpiresIn=3600,
         )
     except Exception as e:
         print("Error generating image URL:", e)
         return None
 
 
-def products(request, category=None):
-    categories = get_all_categories()  
 
- 
+
+def products(request, category=None):
+    categories = get_all_categories()
+    dynamodb = boto3.resource("dynamodb", region_name=settings.COGNITO["region"])
+    items = []
+
     search = request.GET.get("search", "").strip().lower()
 
     if search:
         keyword_map = {
-            "Accessories": ["accessory", "accessories", "earphone", "earphones", "headphones", "charger"],
-            "Laptops": ["laptop", "laptops", "notebook", "macbook"],
-            "Phones": ["phone", "phones", "mobile", "smartphone"],
+            "MenClothes": ["men", "sweater", "hoodie", "polo", "shirt", "tshirt"],
+            "WomenClothes": ["women", "top", "dress", "mesh", "striped", "blouse"],
+            "KidsClothes": ["kids", "child", "baby", "sweatshirt", "christmas"],
         }
 
         matched_category = None
-
         for table_name, words in keyword_map.items():
             if any(w in search for w in words):
                 matched_category = table_name
                 break
 
-        # If search matched override the category and load that table
         if matched_category:
             category = matched_category
         else:
-            category = None  
+            category = None
 
-   
+    try:
+        if category:
+            if category not in categories:
+                messages.error(request, "Invalid category selected.")
+                return redirect("products")
 
-    dynamodb = boto3.resource("dynamodb", region_name=settings.COGNITO["region"])
-    items = []
-
-    if category:
-        if category not in categories:
-            messages.error(request, "Invalid category selected.")
-            return redirect("products")
-
-        table = dynamodb.Table(category)
-        response = table.scan()
-        items = response.get("Items", [])
-    else:
-        for cat in categories:
-            table = dynamodb.Table(cat)
+            table = dynamodb.Table(category)
             response = table.scan()
-            items.extend(response.get("Items", []))
+            items = response.get("Items", [])
+
+            # ✅ attach category to every item
+            for item in items:
+                item["category"] = category
+
+        else:
+            for cat in categories:
+                table = dynamodb.Table(cat)
+                response = table.scan()
+                cat_items = response.get("Items", [])
+
+                # ✅ attach category to every item
+                for item in cat_items:
+                    item["category"] = cat
+
+                items.extend(cat_items)
+
+    except ClientError as e:
+        messages.error(request, f"DynamoDB error: {e.response['Error']['Message']}")
+        return render(request, "products.html", {
+            "products": [],
+            "category": category,
+            "categories": categories,
+            "ADD_TO_CART_URL": "",
+            "VIEW_CART_URL": "",
+            "REMOVE_ITEM_URL": "",
+        })
 
     for item in items:
         key = item.get("image")
@@ -500,12 +511,17 @@ def products(request, category=None):
         "REMOVE_ITEM_URL": lambda_cfg["remove_cart_item"],
     })
 
+# =========================
+# CART / CHECKOUT
+# =========================
 def view_cart(request):
+    print("SESSION DATA:", dict(request.session))
+    print("USER_ID:", request.session.get("user_id"))
     lambda_cfg = settings.COGNITO["lambda_cart_endpoints"]
-
     return render(request, "view_cart.html", {
         "VIEW_CART_URL": lambda_cfg["view_cart"],
         "REMOVE_ITEM_URL": lambda_cfg["remove_cart_item"],
+        "USER_ID": request.session.get("user_id", ""),
     })
 
 def checkout(request):
@@ -516,25 +532,28 @@ def checkout(request):
         "PLACE_ORDER_URL": lambda_cfg["place_order"],
     })
 
+
 def order_confirmation(request):
     order_id = request.GET.get("id")
-
     return render(request, "order_confirmation.html", {
         "order_id": order_id
     })
 
 
+# =========================
+# ADMIN HELPERS
+# =========================
 def get_user_groups(email):
     client = boto3.client("cognito-idp", region_name=settings.COGNITO["region"])
-    
+
     resp = client.admin_list_groups_for_user(
         UserPoolId=settings.COGNITO["user_pool_id"],
         Username=email
     )
 
     return [g["GroupName"] for g in resp.get("Groups", [])]
-    
-    
+
+
 def admin_required(view_func):
     def wrapper(request, *args, **kwargs):
         groups = request.session.get("cognito_groups", [])
@@ -545,6 +564,7 @@ def admin_required(view_func):
 
         return view_func(request, *args, **kwargs)
     return wrapper
+
 
 def offers(request):
     return render(request, "offers.html")

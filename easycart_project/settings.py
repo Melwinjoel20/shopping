@@ -160,8 +160,9 @@ COGNITO = {
     "lambda_cart_endpoints": infra_config.get("lambda_cart_endpoints", {}),
     "rate_limit": infra_config.get("rate_limit", {}),
     "Rate_limit_table": infra_config.get("RATE_LIMIT_TABLE", {}),
+    "dynamodb_tables": infra_config.get("dynamodb_tables", []),
     "app_client_secret":infra_config.get("app_client_secret")
-
+    
     
 }
 
@@ -174,7 +175,7 @@ S3_LOGO_KEY = "images/EasyCartLogo.png"      # FIXED — must be an S3 key, not 
 def generate_presigned_logo_url():
     s3 = boto3.client("s3", region_name=S3_REGION)
     try:
-        return s3.generate_presigned_url(
+        return s3.generate_presigned_url( 
             ClientMethod="get_object",
             Params={"Bucket": S3_BUCKET, "Key": S3_LOGO_KEY},
             ExpiresIn=3600

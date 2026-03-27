@@ -89,8 +89,6 @@
 
         </div>
 
-
-
         <div class="col-md-5">
 
             <div class="card shadow-sm p-4 mb-4">
@@ -109,6 +107,8 @@
                     Place Order
                 </button>
 
+            </div>
+
         </div>
 
     </div>
@@ -119,85 +119,105 @@
 
 {% block extra_scripts %}
 <script>
-
 const VIEW_CART_URL = "{{ VIEW_CART_URL }}";
 const PLACE_ORDER_URL = "{{ PLACE_ORDER_URL }}";
-const USER_ID = "{{ request.session.user_id|default:'guest123' }}";
-
-//  ID token from session 
+const USER_ID = "{{ request.session.user_id|default:'' }}";
 const ID_TOKEN = "{{ request.session.cognito_id_token|default:'' }}";
 const LOGIN_URL = "{% url 'login' %}";
 
-// If there's no ID token at all, treat as logged-out / expired
-if (!ID_TOKEN) {
-    alert("Your session has expired. Please log in again.");
+// Redirect if not logged in
+if (!USER_ID) {
+    alert("Please log in to continue.");
     window.location.href = LOGIN_URL;
 }
 
 // Load cart items for summary
 async function loadOrderSummary() {
-    const res = await fetch(VIEW_CART_URL, {
-        method: "GET",
-        headers: {
-            "Authorization": "Bearer " + ID_TOKEN
-        }
-    });
-
-    if (res.status === 401) {
-        alert("Your session has expired. Please log in again.");
-        window.location.href = LOGIN_URL;
-        return;
-    }
-
-    const items = await res.json();
-
     const container = document.getElementById("order-items");
     const totalSpan = document.getElementById("order-total");
 
-    container.innerHTML = "";
-    let total = 0;
+    container.innerHTML = `<p class="text-muted">Loading order summary...</p>`;
+    totalSpan.innerHTML = "€0.00";
 
-    items.forEach(item => {
-        total += item.price * (item.qty || 1);
+    try {
+        const res = await fetch(`${VIEW_CART_URL}?user_id=${encodeURIComponent(USER_ID)}`);
+        const raw = await res.json();
 
-        container.innerHTML += `
-            <div class="d-flex justify-content-between mb-2">
-                <span>${item.name} (×${item.qty || 1})</span>
-                <span>€${item.price.toFixed(2)}</span>
-            </div>
-        `;
-    });
+        let items = [];
 
-    totalSpan.innerHTML = `€${total.toFixed(2)}`;
+        // Handle API Gateway wrapped response
+        if (raw.body) {
+            items = JSON.parse(raw.body);
+        } else if (Array.isArray(raw)) {
+            items = raw;
+        }
+
+        container.innerHTML = "";
+
+        if (!items || items.length === 0) {
+            container.innerHTML = `<p class="text-muted">Your cart is empty.</p>`;
+            totalSpan.innerHTML = "€0.00";
+            return;
+        }
+
+        let total = 0;
+
+        items.forEach(item => {
+            const qty = Number(item.qty || 1);
+            const price = Number(item.price || 0);
+            const subtotal = price * qty;
+
+            total += subtotal;
+
+            container.innerHTML += `
+                <div class="d-flex justify-content-between mb-2">
+                    <span>${item.name || "Unnamed Product"} (×${qty})</span>
+                    <span>€${subtotal.toFixed(2)}</span>
+                </div>
+            `;
+        });
+
+        totalSpan.innerHTML = `€${total.toFixed(2)}`;
+
+    } catch (err) {
+        console.error("Checkout summary error:", err);
+        container.innerHTML = `<p class="text-danger">Failed to load order summary.</p>`;
+        totalSpan.innerHTML = "€0.00";
+    }
 }
 
 
 // Place Order
 document.getElementById("place-order-btn").addEventListener("click", async () => {
-
-    // Gather customer form data
     const payload = {
         user_id: USER_ID,
         payment_method: document.querySelector("input[name='paymentMethod']:checked").value,
         customer: {
-            full_name: document.getElementById("fullName").value,
-            email: document.getElementById("email").value,
-            phone: document.getElementById("phone").value,
-            country: document.getElementById("country").value,
-            address1: document.getElementById("address1").value,
-            address2: document.getElementById("address2").value,
-            city: document.getElementById("city").value,
-            postal: document.getElementById("postal").value
+            full_name: document.getElementById("fullName").value.trim(),
+            email: document.getElementById("email").value.trim(),
+            phone: document.getElementById("phone").value.trim(),
+            country: document.getElementById("country").value.trim(),
+            address1: document.getElementById("address1").value.trim(),
+            address2: document.getElementById("address2").value.trim(),
+            city: document.getElementById("city").value.trim(),
+            postal: document.getElementById("postal").value.trim()
         }
     };
 
-    // Simple validation
-    if (!payload.customer.full_name || !payload.customer.email) {
+    // Basic validation
+    if (
+        !payload.customer.full_name ||
+        !payload.customer.email ||
+        !payload.customer.phone ||
+        !payload.customer.country ||
+        !payload.customer.address1 ||
+        !payload.customer.city ||
+        !payload.customer.postal
+    ) {
         alert("Please fill all required fields.");
         return;
     }
 
-    // Disable button while processing
     const btn = document.getElementById("place-order-btn");
     btn.disabled = true;
     btn.innerText = "Processing...";
@@ -205,12 +225,14 @@ document.getElementById("place-order-btn").addEventListener("click", async () =>
     try {
         const res = await fetch(PLACE_ORDER_URL, {
             method: "POST",
-            headers: { 
+            headers: {
                 "Content-Type": "application/json",
                 "Authorization": "Bearer " + ID_TOKEN
             },
             body: JSON.stringify(payload)
         });
+
+        const data = await res.json();
 
         if (res.status === 401) {
             alert("Your session has expired. Please log in again.");
@@ -218,25 +240,22 @@ document.getElementById("place-order-btn").addEventListener("click", async () =>
             return;
         }
 
-        const data = await res.json();
-
-        if (res.status === 200) {
+        if (res.ok) {
             alert("Order placed successfully! Order ID: " + data.order_id);
             window.location.href = "/store/order-confirmation/?id=" + data.order_id;
         } else {
-            alert("Order failed: " + (data.error || "Unknown error"));
+            alert("Order failed: " + (data.error || data.message || "Unknown error"));
         }
 
     } catch (err) {
+        console.error("Place order error:", err);
         alert("Something went wrong while placing your order.");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "Place Order";
     }
-
-    btn.disabled = false;
-    btn.innerText = "Place Order";
 });
 
-
 loadOrderSummary();
-
 </script>
 {% endblock %}

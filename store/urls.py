@@ -21,6 +21,7 @@ urlpatterns = [
      path("add-product/", views_admin.admin_add_product, name="admin_add_product"),
      path("manage-products/", views_admin.admin_manage_products, name="admin_manage_products"),
      path("delete/<str:category>/<str:product_id>/", views_admin.admin_delete_product, name="admin_delete_product"),
+     path("admin-sales-dashboard/", views_admin.admin_sales_dashboard, name="admin_sales_dashboard"),
      path("offers/", views.offers, name="offers")
 
 

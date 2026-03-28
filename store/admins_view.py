@@ -6,7 +6,9 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from .views import admin_required
 from datetime import datetime, timedelta
-
+import json
+import os
+import subprocess
 
 
 # =========================
@@ -183,124 +185,138 @@ def admin_delete_product(request, category, product_id):
         messages.error(request, "Failed to delete item from database.")
 
     return redirect("admin_manage_products")
-    
 
 
-from datetime import datetime, timedelta
-import boto3
-from django.conf import settings
-from django.shortcuts import render
-from .views import admin_required
+# =========================
+# ANALYTICS HELPERS
+# =========================
+def decimal_to_float(obj):
+    if isinstance(obj, list):
+        return [decimal_to_float(i) for i in obj]
+    if isinstance(obj, dict):
+        return {k: decimal_to_float(v) for k, v in obj.items()}
+    if isinstance(obj, Decimal):
+        return float(obj)
+    return obj
 
 
-@admin_required
-def admin_sales_dashboard(request):
+def export_orders_to_json():
+    os.makedirs("analytics_data", exist_ok=True)
+
     dynamodb = boto3.resource("dynamodb", region_name=settings.S3_REGION)
     table = dynamodb.Table("Orders")
 
     response = table.scan()
     orders = response.get("Items", [])
 
-    # last 7 days
-    now = datetime.utcnow()
-    last_7_days = now - timedelta(days=7)
+    clean_orders = [decimal_to_float(order) for order in orders]
 
-    total_orders = 0
-    total_revenue = 0
-    total_items_sold = 0
+    path = "analytics_data/orders.json"
 
-    daily_sales = {}
-    category_sales = {}
-    product_sales = {}
+    with open(path, "w") as f:
+        for order in clean_orders:
+            f.write(json.dumps(order) + "\n")
 
-    for order in orders:
-        created_at = order.get("created_at")
-        if not created_at:
-            continue
+    print(f"✅ Exported {len(clean_orders)} orders to {path}")
+    return path
 
-        try:
-            order_date = datetime.fromisoformat(created_at)
-        except:
-            continue
 
-        if order_date < last_7_days:
-            continue
+def run_spark_job():
+    try:
+        spark_path = os.path.expanduser("~/environment/spark-3.5.1-bin-hadoop3/bin/spark-submit")
 
-        total_orders += 1
-        order_total = float(order.get("total_amount", 0))
-        total_revenue += order_total
+        subprocess.run(
+            [spark_path, "spark_jobs/weekly_sales_analytics.py"],
+            check=True
+        )
 
-        day = order_date.strftime("%A")
-        if day not in daily_sales:
-            daily_sales[day] = {"orders": 0, "revenue": 0}
+        print("✅ Spark job executed successfully")
+        return True
 
-        daily_sales[day]["orders"] += 1
-        daily_sales[day]["revenue"] += order_total
+    except Exception as e:
+        print("❌ Spark job failed:", e)
+        return False
 
-        # ✅ NEW item parsing
-        items = order.get("items", [])
 
-        for item in items:
-            name = item.get("name", "Unknown")
-            price = float(item.get("price", 0))
-            qty = int(item.get("qty", 1))
-            category = item.get("category", "General")
+def read_spark_output():
+    path = "analytics_data/weekly_sales_output.json"
 
-            total_items_sold += qty
+    if not os.path.exists(path):
+        print("❌ Spark output file not found")
+        return None
 
-            # Product sales
-            if name not in product_sales:
-                product_sales[name] = {"qty": 0, "revenue": 0}
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+            print("✅ Spark output loaded successfully")
+            return data
+    except Exception as e:
+        print("❌ Failed reading Spark output:", e)
+        return None
 
-            product_sales[name]["qty"] += qty
-            product_sales[name]["revenue"] += price * qty
 
-            # Category formatting
-            if category == "MenClothes":
-                category_label = "Men Clothes"
-            elif category == "WomenClothes":
-                category_label = "Women Clothes"
-            elif category == "KidsClothes":
-                category_label = "Kids Clothes"
-            else:
-                category_label = "General"
+# =========================
+# LIVE WEEKLY SALES DASHBOARD
+# =========================
+@admin_required
+def admin_sales_dashboard(request):
+    try:
+        # STEP 1 → Export latest orders
+        export_orders_to_json()
 
-            if category_label not in category_sales:
-                category_sales[category_label] = {"items": 0, "revenue": 0}
+        # STEP 2 → Run Spark analytics
+        spark_ok = run_spark_job()
 
-            category_sales[category_label]["items"] += qty
-            category_sales[category_label]["revenue"] += price * qty
+        if not spark_ok:
+            messages.error(request, "Spark analytics failed to run.")
+            return render(request, "admin/admin_sales_dashboard.html", {
+                "total_orders": 0,
+                "total_revenue": 0,
+                "total_items_sold": 0,
+                "top_category": "N/A",
+                "daily_sales": [],
+                "category_sales": [],
+                "top_products": [],
+            })
 
-    # format for template
-    daily_sales_list = [
-        {"day": d, "orders": v["orders"], "revenue": round(v["revenue"], 2)}
-        for d, v in daily_sales.items()
-    ]
+        # STEP 3 → Read Spark result
+        analytics = read_spark_output()
 
-    category_sales_list = [
-        {"category": k, "items_sold": v["items"], "revenue": round(v["revenue"], 2)}
-        for k, v in category_sales.items()
-    ]
+        if not analytics:
+            messages.error(request, "No analytics data generated.")
+            return render(request, "admin/admin_sales_dashboard.html", {
+                "total_orders": 0,
+                "total_revenue": 0,
+                "total_items_sold": 0,
+                "top_category": "N/A",
+                "daily_sales": [],
+                "category_sales": [],
+                "top_products": [],
+            })
 
-    top_products_list = sorted(
-        [
-            {"name": k, "qty_sold": v["qty"], "revenue": round(v["revenue"], 2)}
-            for k, v in product_sales.items()
-        ],
-        key=lambda x: x["qty_sold"],
-        reverse=True
-    )[:5]
+        # STEP 4 → Render dashboard
+        context = {
+            "total_orders": analytics.get("total_orders", 0),
+            "total_revenue": analytics.get("total_revenue", 0),
+            "total_items_sold": analytics.get("total_items_sold", 0),
+            "top_category": analytics.get("top_category", "N/A"),
+            "daily_sales": analytics.get("daily_sales", []),
+            "category_sales": analytics.get("category_sales", []),
+            "top_products": analytics.get("top_products", []),
+        }
 
-    top_category = max(category_sales, key=lambda x: category_sales[x]["items"], default="N/A")
+        return render(request, "admin/admin_sales_dashboard.html", context)
 
-    context = {
-        "total_orders": total_orders,
-        "total_revenue": round(total_revenue, 2),
-        "total_items_sold": total_items_sold,
-        "top_category": top_category,
-        "daily_sales": daily_sales_list,
-        "category_sales": category_sales_list,
-        "top_products": top_products_list,
-    }
+    except Exception as e:
+        print("❌ Weekly analytics dashboard failed:", e)
+        messages.error(request, "Failed to generate weekly sales analytics.")
 
-    return render(request, "admin/admin_sales_dashboard.html", context)
+        return render(request, "admin/admin_sales_dashboard.html", {
+            "total_orders": 0,
+            "total_revenue": 0,
+            "total_items_sold": 0,
+            "top_category": "N/A",
+            "daily_sales": [],
+            "category_sales": [],
+            "top_products": [],
+        })

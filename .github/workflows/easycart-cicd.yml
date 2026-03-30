@@ -93,7 +93,6 @@ jobs:
       # 6. Deploy
       - name: Deploy to Elastic Beanstalk
         run: |
-          cd EasyCart
           eb init ${{ secrets.EB_APP_NAME }} \
             --region ${{ secrets.AWS_REGION }} \
             --platform "Python 3.9 running on 64bit Amazon Linux 2023"

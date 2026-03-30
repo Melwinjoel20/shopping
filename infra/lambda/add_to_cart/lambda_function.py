@@ -1,6 +1,7 @@
 import json
 import boto3
 import uuid
+from decimal import Decimal
 
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table("UserCart")
@@ -18,7 +19,9 @@ def _cors_headers():
 def lambda_handler(event, context):
     print("Incoming event:", json.dumps(event))
 
-    # Determine HTTP method
+    # -----------------------------------------------------
+    # Detect HTTP method
+    # -----------------------------------------------------
     method = (
         (event.get("requestContext", {}) or {})
         .get("http", {})
@@ -35,18 +38,35 @@ def lambda_handler(event, context):
         }
 
     # -----------------------------------------------------
-    # 🔥 USER IS ALREADY VERIFIED BY API GATEWAY JWT AUTHORIZER
+    # Extract JWT claims
     # -----------------------------------------------------
     auth = event.get("requestContext", {}).get("authorizer", {})
-
-    # Extract claims
     claims = auth.get("jwt", {}).get("claims", {}) or auth.get("claims", {})
 
     print("JWT Claims:", claims)
 
-    # Since API Gateway validated JWT, this will always exist
-    user_id = claims.get("email") or claims.get("cognito:username")
-    
+    # -----------------------------------------------------
+    # Parse request body safely
+    # -----------------------------------------------------
+    if "body" in event:
+        try:
+            body = json.loads(event.get("body") or "{}")
+        except Exception:
+            body = {}
+    else:
+        body = event  # for testing in Lambda console
+
+    print("Parsed body:", body)
+
+    # -----------------------------------------------------
+    # Determine user_id
+    # -----------------------------------------------------
+    user_id = (
+        claims.get("email")
+        or claims.get("cognito:username")
+        or body.get("user_id")
+    )
+
     if not user_id:
         return {
             "statusCode": 401,
@@ -55,29 +75,63 @@ def lambda_handler(event, context):
         }
 
     # -----------------------------------------------------
+    # Extract product details
+    # -----------------------------------------------------
+    product_id = body.get("product_id")
+    name = body.get("name")
+    price = body.get("price")
+    image = body.get("image")
+    category = body.get("category", "General")
 
-    # Parse request body
-    body_str = event.get("body") or "{}"
-    try:
-        body = json.loads(body_str)
-    except:
-        body = {}
-
-    # Insert into DynamoDB
-    table.put_item(
-        Item={
-            "user_id": user_id,
-            "item_id": str(uuid.uuid4()),
-            "product_id": body.get("product_id"),
-            "name": body.get("name"),
-            "price": body.get("price"),
-            "image": body.get("image"),
-            "qty": 1
+    # -----------------------------------------------------
+    # Validate required fields
+    # -----------------------------------------------------
+    if not product_id or not name or price is None:
+        return {
+            "statusCode": 400,
+            "headers": _cors_headers(),
+            "body": json.dumps({"error": "Missing required product fields"})
         }
-    )
 
+    # -----------------------------------------------------
+    # Create cart item
+    # -----------------------------------------------------
+    item_id = str(uuid.uuid4())
+
+    item = {
+        "user_id": user_id,
+        "item_id": item_id,
+        "product_id": product_id,
+        "name": name,
+        "price": Decimal(str(price)),
+        "image": image,
+        "qty": 1,
+        "category": category
+    }
+
+    print("Saving item:", item)
+
+    # -----------------------------------------------------
+    # Save to DynamoDB
+    # -----------------------------------------------------
+    try:
+        table.put_item(Item=item)
+    except Exception as e:
+        print("DynamoDB Error:", e)
+        return {
+            "statusCode": 500,
+            "headers": _cors_headers(),
+            "body": json.dumps({"error": "Failed to add to cart"})
+        }
+
+    # -----------------------------------------------------
+    # Success response
+    # -----------------------------------------------------
     return {
         "statusCode": 200,
         "headers": _cors_headers(),
-        "body": json.dumps({"message": "Added to cart"})
+        "body": json.dumps({
+            "message": "Added to cart successfully",
+            "item_id": item_id
+        })
     }

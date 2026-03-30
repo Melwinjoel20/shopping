@@ -30,6 +30,7 @@ def _cors_headers():
 def lambda_handler(event, context):
     print("Incoming event:", json.dumps(event))
 
+    # Detect HTTP method
     method = (
         (event.get("requestContext", {}) or {})
         .get("http", {})
@@ -37,7 +38,7 @@ def lambda_handler(event, context):
         or event.get("httpMethod", "")
     ).upper()
 
-
+    # Handle preflight
     if method == "OPTIONS":
         return {
             "statusCode": 204,
@@ -45,27 +46,26 @@ def lambda_handler(event, context):
             "body": ""
         }
 
-    #Secure user from JWT
-    auth = event.get("requestContext", {}).get("authorizer", {})
+    # ✅ Read user_id from query params safely
+    query_params = event.get("queryStringParameters") or {}
+    user_id = query_params.get("user_id")
 
-    claims = auth.get("jwt", {}).get("claims", {}) or auth.get("claims", {})
-
-    user_id = claims.get("email") or claims.get("cognito:username")
+    print("QUERY PARAMS:", query_params)
+    print("FINAL USER_ID:", user_id)
 
     if not user_id:
         return {
-            "statusCode": 401,
+            "statusCode": 400,
             "headers": _cors_headers(),
-            "body": json.dumps({"message": "Unauthorized: Please log in"})
+            "body": json.dumps({"message": "Missing user_id"})
         }
 
-    #Only logged-in users reach here
+    # Fetch cart items for that user
     response = table.scan(
         FilterExpression=Attr("user_id").eq(user_id)
     )
 
     items = response.get("Items", [])
-
     items = clean_decimal(items)
 
     return {

@@ -1,7 +1,7 @@
 {
-    "total_orders": 4,
-    "total_revenue": 196.0,
-    "total_items_sold": 4,
+    "total_orders": 6,
+    "total_revenue": 294.0,
+    "total_items_sold": 6,
     "top_category": "MenClothes",
     "daily_sales": [
         {
@@ -16,22 +16,22 @@
         },
         {
             "day": "Monday",
-            "orders": 1,
-            "revenue": 49.0
+            "orders": 3,
+            "revenue": 147.0
         }
     ],
     "category_sales": [
         {
             "category": "MenClothes",
-            "items_sold": 4,
-            "revenue": 196.0
+            "items_sold": 6,
+            "revenue": 294.0
         }
     ],
     "top_products": [
         {
             "name": "Essential Polo Tshirt Set",
-            "qty_sold": 4,
-            "revenue": 196.0
+            "qty_sold": 6,
+            "revenue": 294.0
         }
     ]
 }

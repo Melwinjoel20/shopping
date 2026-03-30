@@ -187,39 +187,19 @@ def admin_delete_product(request, category, product_id):
 # =========================
 def run_glue_job():
     try:
-        glue     = boto3.client("glue", region_name=REGION)
-        response = glue.start_job_run(JobName=GLUE_JOB)
-        run_id   = response["JobRunId"]
-        print(f"✅ Glue job started — RunId: {run_id}")
+        glue = boto3.client("glue", region_name=REGION)
 
-        max_wait   = 600
-        poll_every = 15
-        elapsed    = 0
-
-        while elapsed < max_wait:
-            time.sleep(poll_every)
-            elapsed += poll_every
-
-            status      = glue.get_job_run(JobName=GLUE_JOB, RunId=run_id)
-            state       = status["JobRun"]["JobRunState"]
-            print(f"⏳ Glue state: {state} ({elapsed}s)")
-
-            if state == "SUCCEEDED":
-                print("✅ Glue job completed")
-                return True
-
-            if state in ("FAILED", "ERROR", "TIMEOUT", "STOPPED"):
-                error = status["JobRun"].get("ErrorMessage", "No details")
-                print(f"❌ Glue job failed — {state}: {error}")
-                return False
-
-        print("❌ Glue job timed out")
-        return False
-
-    except Exception as e:
-        print(f"❌ Failed to trigger Glue job: {e}")
-        return False
-
+        # Check if job is already running
+        runs = glue.get_job_runs(JobName=GLUE_JOB, MaxResults=1)
+        if runs["JobRuns"] and runs["JobRuns"][0]["JobRunState"] in ("RUNNING", "STARTING"):
+            run_id = runs["JobRuns"][0]["Id"]
+            print(f"⏳ Glue job already running — reusing RunId: {run_id}")
+        else:
+            response = glue.start_job_run(JobName=GLUE_JOB)
+            run_id = response["JobRunId"]
+            print(f"✅ Glue job started — RunId: {run_id}")
+        # ... rest of polling code
+        
 
 # =========================
 # GLUE: READ OUTPUT FROM S3

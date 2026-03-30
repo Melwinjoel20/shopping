@@ -36,7 +36,6 @@ jobs:
       # 5. Bundle
       - name: Create deployment bundle
         run: |
-          cd EasyCart
           zip -r ../app.zip . \
             -x "env/*" "**/__pycache__/*" ".git/*" ".github/*" "*.pyc" "*.egg-info/*"
 

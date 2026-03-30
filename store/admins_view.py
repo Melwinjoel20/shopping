@@ -1,14 +1,21 @@
 from decimal import Decimal
 import boto3
 import uuid
+import time
 from django.conf import settings
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from .views import admin_required
-from datetime import datetime, timedelta
 import json
-import os
-import subprocess
+
+
+# =========================
+# CONFIG
+# =========================
+REGION     = settings.S3_REGION
+BUCKET     = settings.S3_BUCKET
+GLUE_JOB   = "weekly-sales-analytics"
+OUTPUT_KEY = "analytics/weekly_sales_output.json"
 
 
 # =========================
@@ -23,20 +30,16 @@ def admin_dashboard(request):
 # HELPER: ENSURE BUCKET EXISTS
 # =========================
 def ensure_bucket_exists():
-    s3 = boto3.client("s3", region_name=settings.S3_REGION)
-    bucket_name = settings.S3_BUCKET
-
+    s3 = boto3.client("s3", region_name=REGION)
     try:
-        s3.head_bucket(Bucket=bucket_name)
+        s3.head_bucket(Bucket=BUCKET)
     except Exception:
         try:
             s3.create_bucket(
-                Bucket=bucket_name,
-                CreateBucketConfiguration={
-                    "LocationConstraint": settings.S3_REGION
-                }
+                Bucket=BUCKET,
+                CreateBucketConfiguration={"LocationConstraint": REGION}
             )
-            print(f"Bucket '{bucket_name}' created successfully.")
+            print(f"Bucket '{BUCKET}' created successfully.")
         except Exception as e:
             print("Bucket creation failed:", e)
             return False
@@ -47,19 +50,18 @@ def ensure_bucket_exists():
 # HELPER: UPLOAD FILE TO S3
 # =========================
 def upload_product_image_to_s3(file_obj):
-    s3 = boto3.client("s3", region_name=settings.S3_REGION)
-    bucket_name = settings.S3_BUCKET
+    s3 = boto3.client("s3", region_name=REGION)
 
     if not ensure_bucket_exists():
         return None
 
-    ext = file_obj.name.split(".")[-1]
+    ext         = file_obj.name.split(".")[-1]
     unique_name = f"product-images/{uuid.uuid4()}.{ext}"
 
     try:
         s3.upload_fileobj(
             file_obj,
-            bucket_name,
+            BUCKET,
             unique_name,
             ExtraArgs={"ContentType": file_obj.content_type}
         )
@@ -77,11 +79,11 @@ def admin_add_product(request):
     categories = settings.COGNITO.get("dynamodb_tables", [])
 
     if request.method == "POST":
-        category = request.POST.get("category")
-        name = request.POST.get("name")
+        category    = request.POST.get("category")
+        name        = request.POST.get("name")
         description = request.POST.get("description")
-        price = Decimal(request.POST.get("price"))
-        image_file = request.FILES.get("image_file")
+        price       = Decimal(request.POST.get("price"))
+        image_file  = request.FILES.get("image_file")
 
         if category not in categories:
             messages.error(request, "Invalid category selected.")
@@ -96,27 +98,22 @@ def admin_add_product(request):
             messages.error(request, "Failed to upload image to S3.")
             return redirect("admin_add_product")
 
-        dynamodb = boto3.resource("dynamodb", region_name=settings.S3_REGION)
-        table = dynamodb.Table(category)
+        dynamodb = boto3.resource("dynamodb", region_name=REGION)
+        table    = dynamodb.Table(category)
+        pid      = str(uuid.uuid4())
 
-        pid = str(uuid.uuid4())
-
-        table.put_item(
-            Item={
-                "product_id": pid,
-                "name": name,
-                "description": description,
-                "price": price,
-                "image": s3_key
-            }
-        )
+        table.put_item(Item={
+            "product_id":  pid,
+            "name":        name,
+            "description": description,
+            "price":       price,
+            "image":       s3_key
+        })
 
         messages.success(request, "Product added successfully!")
         return redirect("admin_dashboard")
 
-    return render(request, "admin/add_product.html", {
-        "categories": categories
-    })
+    return render(request, "admin/add_product.html", {"categories": categories})
 
 
 # =========================
@@ -124,21 +121,19 @@ def admin_add_product(request):
 # =========================
 @admin_required
 def admin_manage_products(request):
-    dynamodb = boto3.resource("dynamodb", region_name=settings.S3_REGION)
+    dynamodb   = boto3.resource("dynamodb", region_name=REGION)
     categories = settings.COGNITO.get("dynamodb_tables", [])
-
-    products = []
+    products   = []
 
     for cat in categories:
         table = dynamodb.Table(cat)
-        res = table.scan().get("Items", [])
-
+        res   = table.scan().get("Items", [])
         for item in res:
             item["category"] = cat
             products.append(item)
 
     return render(request, "admin/manage_products.html", {
-        "products": products,
+        "products":   products,
         "categories": categories
     })
 
@@ -148,11 +143,11 @@ def admin_manage_products(request):
 # =========================
 @admin_required
 def admin_delete_product(request, category, product_id):
-    dynamodb = boto3.resource("dynamodb", region_name=settings.S3_REGION)
-    table = dynamodb.Table(category)
+    dynamodb = boto3.resource("dynamodb", region_name=REGION)
+    table    = dynamodb.Table(category)
 
     try:
-        res = table.get_item(Key={"product_id": product_id})
+        res  = table.get_item(Key={"product_id": product_id})
         item = res.get("Item")
 
         if not item:
@@ -170,8 +165,8 @@ def admin_delete_product(request, category, product_id):
 
     if image_key:
         try:
-            s3 = boto3.client("s3", region_name=settings.S3_REGION)
-            s3.delete_object(Bucket=settings.S3_BUCKET, Key=image_key)
+            s3 = boto3.client("s3", region_name=REGION)
+            s3.delete_object(Bucket=BUCKET, Key=image_key)
             print(f"Deleted S3 Image: {image_key}")
         except Exception as e:
             print("S3 delete failed:", e)
@@ -188,158 +183,101 @@ def admin_delete_product(request, category, product_id):
 
 
 # =========================
-# ANALYTICS HELPERS
+# GLUE: TRIGGER JOB
 # =========================
-def decimal_to_float(obj):
-    if isinstance(obj, list):
-        return [decimal_to_float(i) for i in obj]
-    if isinstance(obj, dict):
-        return {k: decimal_to_float(v) for k, v in obj.items()}
-    if isinstance(obj, Decimal):
-        return float(obj)
-    return obj
-
-
-def export_orders_to_json():
-    os.makedirs("analytics_data", exist_ok=True)
-
-    dynamodb = boto3.resource("dynamodb", region_name=settings.S3_REGION)
-    table = dynamodb.Table("Orders")
-
-    response = table.scan()
-    orders = response.get("Items", [])
-
-    clean_orders = [decimal_to_float(order) for order in orders]
-
-    path = "analytics_data/orders.json"
-
-    with open(path, "w") as f:
-        for order in clean_orders:
-            f.write(json.dumps(order) + "\n")
-
-    print(f"✅ Exported {len(clean_orders)} orders to {path}")
-    return path
-
-
-def free_memory_cache():
-    """
-    Drops Linux page/buff/cache before Spark runs so there
-    is enough free RAM on the t2.micro instance.
-    Requires ec2-user to have passwordless sudo for this command.
-    Add to /etc/sudoers:
-        ec2-user ALL=(ALL) NOPASSWD: /bin/sh -c sync*
-    """
+def run_glue_job():
     try:
-        subprocess.run(
-            ["sudo", "sh", "-c", "sync; echo 3 > /proc/sys/vm/drop_caches"],
-            check=True,
-            timeout=10
-        )
-        print("✅ Memory cache cleared")
-    except Exception as e:
-        # Non-fatal — Spark may still have enough memory
-        print(f"⚠️  Cache clear skipped: {e}")
+        glue     = boto3.client("glue", region_name=REGION)
+        response = glue.start_job_run(JobName=GLUE_JOB)
+        run_id   = response["JobRunId"]
+        print(f"✅ Glue job started — RunId: {run_id}")
 
+        max_wait   = 600
+        poll_every = 15
+        elapsed    = 0
 
-def run_spark_job():
-    try:
-        spark_path = os.path.expanduser("~/environment/spark-3.5.1-bin-hadoop3/bin/spark-submit")
+        while elapsed < max_wait:
+            time.sleep(poll_every)
+            elapsed += poll_every
 
-        # Free up Linux buffer/cache so Spark has enough RAM
-        free_memory_cache()
+            status      = glue.get_job_run(JobName=GLUE_JOB, RunId=run_id)
+            state       = status["JobRun"]["JobRunState"]
+            print(f"⏳ Glue state: {state} ({elapsed}s)")
 
-        subprocess.run(
-            [spark_path, "spark_jobs/weekly_sales_analytics.py"],
-            check=True
-        )
+            if state == "SUCCEEDED":
+                print("✅ Glue job completed")
+                return True
 
-        print("✅ Spark job executed successfully")
-        return True
+            if state in ("FAILED", "ERROR", "TIMEOUT", "STOPPED"):
+                error = status["JobRun"].get("ErrorMessage", "No details")
+                print(f"❌ Glue job failed — {state}: {error}")
+                return False
+
+        print("❌ Glue job timed out")
+        return False
 
     except Exception as e:
-        print("❌ Spark job failed:", e)
+        print(f"❌ Failed to trigger Glue job: {e}")
         return False
 
 
-def read_spark_output():
-    path = "analytics_data/weekly_sales_output.json"
-
-    if not os.path.exists(path):
-        print("❌ Spark output file not found")
-        return None
-
+# =========================
+# GLUE: READ OUTPUT FROM S3
+# =========================
+def read_glue_output():
     try:
-        with open(path, "r") as f:
-            data = json.load(f)
-            print("✅ Spark output loaded successfully")
-            return data
+        s3   = boto3.client("s3", region_name=REGION)
+        obj  = s3.get_object(Bucket=BUCKET, Key=OUTPUT_KEY)
+        data = json.loads(obj["Body"].read().decode("utf-8"))
+        print("✅ Analytics output loaded from S3")
+        return data
     except Exception as e:
-        print("❌ Failed reading Spark output:", e)
+        print(f"❌ Failed to read Glue output from S3: {e}")
         return None
 
 
 # =========================
-# LIVE WEEKLY SALES DASHBOARD
+# WEEKLY SALES DASHBOARD
 # =========================
 @admin_required
 def admin_sales_dashboard(request):
+
+    empty_context = {
+        "total_orders":     0,
+        "total_revenue":    0,
+        "total_items_sold": 0,
+        "top_category":     "N/A",
+        "daily_sales":      [],
+        "category_sales":   [],
+        "top_products":     [],
+    }
+
     try:
-        # STEP 1 → Export latest orders
-        export_orders_to_json()
+        glue_ok = run_glue_job()
 
-        # STEP 2 → Run Spark analytics
-        spark_ok = run_spark_job()
+        if not glue_ok:
+            messages.error(request, "Spark analytics (Glue) failed to run.")
+            return render(request, "admin/admin_sales_dashboard.html", empty_context)
 
-        if not spark_ok:
-            messages.error(request, "Spark analytics failed to run.")
-            return render(request, "admin/admin_sales_dashboard.html", {
-                "total_orders": 0,
-                "total_revenue": 0,
-                "total_items_sold": 0,
-                "top_category": "N/A",
-                "daily_sales": [],
-                "category_sales": [],
-                "top_products": [],
-            })
-
-        # STEP 3 → Read Spark result
-        analytics = read_spark_output()
+        analytics = read_glue_output()
 
         if not analytics:
-            messages.error(request, "No analytics data generated.")
-            return render(request, "admin/admin_sales_dashboard.html", {
-                "total_orders": 0,
-                "total_revenue": 0,
-                "total_items_sold": 0,
-                "top_category": "N/A",
-                "daily_sales": [],
-                "category_sales": [],
-                "top_products": [],
-            })
+            messages.error(request, "No analytics data found in S3.")
+            return render(request, "admin/admin_sales_dashboard.html", empty_context)
 
-        # STEP 4 → Render dashboard
         context = {
-            "total_orders": analytics.get("total_orders", 0),
-            "total_revenue": analytics.get("total_revenue", 0),
+            "total_orders":     analytics.get("total_orders", 0),
+            "total_revenue":    analytics.get("total_revenue", 0),
             "total_items_sold": analytics.get("total_items_sold", 0),
-            "top_category": analytics.get("top_category", "N/A"),
-            "daily_sales": analytics.get("daily_sales", []),
-            "category_sales": analytics.get("category_sales", []),
-            "top_products": analytics.get("top_products", []),
+            "top_category":     analytics.get("top_category", "N/A"),
+            "daily_sales":      analytics.get("daily_sales", []),
+            "category_sales":   analytics.get("category_sales", []),
+            "top_products":     analytics.get("top_products", []),
         }
 
         return render(request, "admin/admin_sales_dashboard.html", context)
 
     except Exception as e:
-        print("❌ Weekly analytics dashboard failed:", e)
+        print(f"❌ Weekly analytics dashboard failed: {e}")
         messages.error(request, "Failed to generate weekly sales analytics.")
-
-        return render(request, "admin/admin_sales_dashboard.html", {
-            "total_orders": 0,
-            "total_revenue": 0,
-            "total_items_sold": 0,
-            "top_category": "N/A",
-            "daily_sales": [],
-            "category_sales": [],
-            "top_products": [],
-        })
+        return render(request, "admin/admin_sales_dashboard.html", empty_context)

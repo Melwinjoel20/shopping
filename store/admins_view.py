@@ -224,7 +224,10 @@ def export_orders_to_json():
 def free_memory_cache():
     """
     Drops Linux page/buff/cache before Spark runs so there
-    is enough free RAM on the instance.
+    is enough free RAM on the t2.micro instance.
+    Requires ec2-user to have passwordless sudo for this command.
+    Add to /etc/sudoers:
+        ec2-user ALL=(ALL) NOPASSWD: /bin/sh -c sync*
     """
     try:
         subprocess.run(
@@ -238,57 +241,20 @@ def free_memory_cache():
         print(f"⚠️  Cache clear skipped: {e}")
 
 
-def find_spark_submit():
-    """
-    Finds spark-submit across EC2 Cloud9 and EBS environments.
-    Returns the path string to use in subprocess.
-    """
-    possible_paths = [
-        os.path.expanduser("~/environment/spark-3.5.1-bin-hadoop3/bin/spark-submit"),  # EC2 Cloud9
-        "/opt/spark/bin/spark-submit",        # EBS after .ebextensions install
-        "/usr/local/bin/spark-submit",        # Generic fallback
-        "/opt/spark-3.5.1-bin-hadoop3/bin/spark-submit",  # Alt EBS path
-    ]
-
-    for path in possible_paths:
-        if os.path.exists(path):
-            print(f"✅ Found spark-submit at: {path}")
-            return path
-
-    # Last resort — rely on PATH
-    print("⚠️  spark-submit not found in known paths, falling back to PATH")
-    return "spark-submit"
-
-
 def run_spark_job():
     try:
-        spark_path = find_spark_submit()
+        spark_path = os.path.expanduser("~/environment/spark-3.5.1-bin-hadoop3/bin/spark-submit")
 
         # Free up Linux buffer/cache so Spark has enough RAM
         free_memory_cache()
 
-        # Set JAVA_HOME explicitly so EBS can find Java
-        env = os.environ.copy()
-        env.setdefault("JAVA_HOME", "/usr/lib/jvm/java-11-amazon-corretto")
-        env.setdefault("SPARK_HOME", "/opt/spark")
-
-        result = subprocess.run(
+        subprocess.run(
             [spark_path, "spark_jobs/weekly_sales_analytics.py"],
-            check=True,
-            env=env,
-            capture_output=True,
-            text=True
+            check=True
         )
 
         print("✅ Spark job executed successfully")
-        print(result.stdout)
         return True
-
-    except subprocess.CalledProcessError as e:
-        print("❌ Spark job failed with exit code:", e.returncode)
-        print("STDOUT:", e.stdout)
-        print("STDERR:", e.stderr)
-        return False
 
     except Exception as e:
         print("❌ Spark job failed:", e)

@@ -221,9 +221,32 @@ def export_orders_to_json():
     return path
 
 
+def free_memory_cache():
+    """
+    Drops Linux page/buff/cache before Spark runs so there
+    is enough free RAM on the t2.micro instance.
+    Requires ec2-user to have passwordless sudo for this command.
+    Add to /etc/sudoers:
+        ec2-user ALL=(ALL) NOPASSWD: /bin/sh -c sync*
+    """
+    try:
+        subprocess.run(
+            ["sudo", "sh", "-c", "sync; echo 3 > /proc/sys/vm/drop_caches"],
+            check=True,
+            timeout=10
+        )
+        print("✅ Memory cache cleared")
+    except Exception as e:
+        # Non-fatal — Spark may still have enough memory
+        print(f"⚠️  Cache clear skipped: {e}")
+
+
 def run_spark_job():
     try:
         spark_path = os.path.expanduser("~/environment/spark-3.5.1-bin-hadoop3/bin/spark-submit")
+
+        # Free up Linux buffer/cache so Spark has enough RAM
+        free_memory_cache()
 
         subprocess.run(
             [spark_path, "spark_jobs/weekly_sales_analytics.py"],

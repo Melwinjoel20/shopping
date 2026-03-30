@@ -20,7 +20,16 @@ OUTPUT_PATH = "analytics_data/weekly_sales_output.json"
 # =========================
 spark = SparkSession.builder \
     .appName("EasyCartWeeklySalesAnalytics") \
+    .config("spark.driver.memory",          "512m") \
+    .config("spark.executor.memory",        "512m") \
+    .config("spark.driver.maxResultSize",   "256m") \
+    .config("spark.sql.shuffle.partitions", "2")    \
+    .config("spark.default.parallelism",    "2")    \
+    .config("spark.ui.enabled",             "false") \
+    .master("local[1]") \
     .getOrCreate()
+
+spark.sparkContext.setLogLevel("WARN")
 
 # =========================
 # READ INPUT (LET SPARK INFER STRUCTURE)
@@ -88,6 +97,9 @@ items_df = items_df.fillna({
     "qty": 1
 })
 
+# Cache since items_df is reused multiple times
+items_df.cache()
+
 print("DEBUG → Flattened Items")
 items_df.show(20, truncate=False)
 
@@ -151,6 +163,9 @@ top_products = [
     }
     for row in top_products_df.limit(5).collect()
 ]
+
+# Free cached data
+items_df.unpersist()
 
 # =========================
 # FINAL OUTPUT

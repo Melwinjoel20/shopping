@@ -130,6 +130,9 @@
                 <div id="order-items"></div>
                 <div id="tax-line"></div>
 
+                <!-- Delivery fee line — populated by fare calculator -->
+                <div id="delivery-line"></div>
+
                 <hr>
 
                 <p class="fw-bold fs-5">
@@ -158,6 +161,17 @@ const USER_ID = "{{ request.session.user_id|default:'' }}";
 const ID_TOKEN = "{{ request.session.cognito_id_token|default:'' }}";
 const LOGIN_URL = "{% url 'login' %}";
 const TAX_API_URL = "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/tax_calculator";
+const FARE_API_URL = "https://0v2jl32vw0.execute-api.us-east-1.amazonaws.com/PROD/fare-calculator";
+
+// Store is always shipping from Cork
+const STORE_CITY = "Cork";
+
+// Cities supported by the fare API
+const SUPPORTED_CITIES = ["Dublin", "Cork", "Galway", "Limerick", "Waterford", "Belfast"];
+
+// Running totals shared between tax and fare steps
+let cartSubtotal = 0;
+let deliveryFeeRaw = 0;
 
 // Redirect if not logged in
 if (!USER_ID) {
@@ -165,7 +179,8 @@ if (!USER_ID) {
     window.location.href = LOGIN_URL;
 }
 
-// Set flag image using flagcdn.com
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
 function setCountryFlag(code) {
     const flagEl = document.getElementById("country-flag");
     const lower = code.toLowerCase();
@@ -173,7 +188,18 @@ function setCountryFlag(code) {
         alt="${code}" style="width: 24px; height: 18px; border-radius: 2px;">`;
 }
 
-// Auto-fill country and city via Django proxy
+/**
+ * Normalise a free-text city name against the supported list.
+ * Matches case-insensitively and allows partial prefix matches
+ * (e.g. "galway city" → "Galway").
+ */
+function matchSupportedCity(input) {
+    const trimmed = input.trim().toLowerCase();
+    return SUPPORTED_CITIES.find(c => trimmed.startsWith(c.toLowerCase())) || null;
+}
+
+// ── Geolocation auto-fill ─────────────────────────────────────────────────────
+
 async function autoFillLocation() {
     const statusEl = document.getElementById("geo-status");
     statusEl.style.display = "block";
@@ -183,32 +209,25 @@ async function autoFillLocation() {
         const data = await res.json();
 
         const countryField = document.getElementById("country");
-        const cityField = document.getElementById("city");
+        const cityField    = document.getElementById("city");
 
-        if (!countryField.value) {
-            countryField.value = data.country_name || "Ireland";
-        }
-        if (!cityField.value) {
-            cityField.value = data.city || "";
-        }
+        if (!countryField.value) countryField.value = data.country_name || "Ireland";
+        if (!cityField.value)    cityField.value    = data.city || "";
 
-        if (data.country_code) {
-            setCountryFlag(data.country_code);
-        }
+        if (data.country_code) setCountryFlag(data.country_code);
 
     } catch (err) {
         console.warn("Geolocation auto-fill failed:", err);
         const countryField = document.getElementById("country");
-        if (!countryField.value) {
-            countryField.value = "Ireland";
-        }
+        if (!countryField.value) countryField.value = "Ireland";
         setCountryFlag("IE");
     } finally {
         statusEl.style.display = "none";
     }
 }
 
-// Verify address on Google Maps
+// ── Address verification ──────────────────────────────────────────────────────
+
 function verifyAddress() {
     const parts = [
         document.getElementById("address1").value.trim(),
@@ -232,7 +251,8 @@ function verifyAddress() {
     document.getElementById("map-section").style.display = "block";
 }
 
-// Tax calculation
+// ── Tax calculation ───────────────────────────────────────────────────────────
+
 async function calculateAndShowTax(price, countryCode, category) {
     try {
         const res = await fetch(TAX_API_URL, {
@@ -242,8 +262,7 @@ async function calculateAndShowTax(price, countryCode, category) {
         });
         const data = await res.json();
 
-        const taxLine = document.getElementById("tax-line");
-        const totalSpan = document.getElementById("order-total");
+        const taxLine  = document.getElementById("tax-line");
 
         if (data.tax_rate > 0) {
             taxLine.innerHTML = `
@@ -255,24 +274,89 @@ async function calculateAndShowTax(price, countryCode, category) {
                     <span>VAT (${data.tax_rate}%)</span>
                     <span>${data.currency} ${data.tax_amount.toFixed(2)}</span>
                 </div>`;
-            totalSpan.innerHTML = `${data.currency} ${data.final_price.toFixed(2)}`;
+
+            // Return the tax-inclusive price so the fare step can add on top
+            return data.final_price;
         } else {
             taxLine.innerHTML = `
                 <div class="d-flex justify-content-between mb-2 text-muted" style="font-size:0.9rem;">
                     <span>VAT</span>
                     <span class="text-success">Zero rated</span>
                 </div>`;
-            totalSpan.innerHTML = `€${price.toFixed(2)}`;
+            return price;
         }
     } catch (err) {
         console.warn("Tax calculation failed:", err);
+        return price; // fall back to raw price
     }
 }
 
-// Load cart items for order summary
+// ── Fare / delivery calculation ───────────────────────────────────────────────
+
+async function calculateAndShowFare(destinationCity) {
+    const deliveryLine = document.getElementById("delivery-line");
+    deliveryFeeRaw = 0;
+
+    const matched = matchSupportedCity(destinationCity);
+
+    if (!matched) {
+        // City not covered — show informational note, no delivery fee
+        deliveryLine.innerHTML = `
+            <div class="d-flex justify-content-between mb-2 text-muted" style="font-size:0.9rem;">
+                <span>🚚 Delivery fee</span>
+                <span class="text-secondary fst-italic">Contact us for a quote</span>
+            </div>`;
+        return 0;
+    }
+
+    if (matched.toLowerCase() === STORE_CITY.toLowerCase()) {
+        // Delivering within Cork — no fare API call needed
+        deliveryLine.innerHTML = `
+            <div class="d-flex justify-content-between mb-2 text-muted" style="font-size:0.9rem;">
+                <span>🚚 Delivery (Cork local)</span>
+                <span class="text-success">Free</span>
+            </div>`;
+        return 0;
+    }
+
+    try {
+        const res = await fetch(FARE_API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ from: STORE_CITY, to: matched })
+        });
+        const data = await res.json();
+
+        const fee = Number(data.fare_raw) || 0;
+        deliveryFeeRaw = fee;
+
+        deliveryLine.innerHTML = `
+            <div class="d-flex justify-content-between mb-1 text-muted" style="font-size:0.9rem;">
+                <span>🚚 Delivery (${STORE_CITY} → ${matched})</span>
+                <span>€${fee.toFixed(2)}</span>
+            </div>
+            <div class="text-muted mb-2" style="font-size:0.78rem;">
+                ${data.distance_km} km &nbsp;·&nbsp; est. ${data.duration_estimate}
+            </div>`;
+
+        return fee;
+
+    } catch (err) {
+        console.warn("Fare calculation failed:", err);
+        deliveryLine.innerHTML = `
+            <div class="d-flex justify-content-between mb-2 text-muted" style="font-size:0.9rem;">
+                <span>🚚 Delivery fee</span>
+                <span class="text-danger">Unavailable</span>
+            </div>`;
+        return 0;
+    }
+}
+
+// ── Order summary (orchestrates both APIs) ────────────────────────────────────
+
 async function loadOrderSummary() {
-    const container = document.getElementById("order-items");
-    const totalSpan = document.getElementById("order-total");
+    const container  = document.getElementById("order-items");
+    const totalSpan  = document.getElementById("order-total");
 
     container.innerHTML = `<p class="text-muted">Loading order summary...</p>`;
     totalSpan.innerHTML = "€0.00";
@@ -282,7 +366,6 @@ async function loadOrderSummary() {
         const raw = await res.json();
 
         let items = [];
-
         if (raw.body) {
             items = JSON.parse(raw.body);
         } else if (Array.isArray(raw)) {
@@ -297,26 +380,35 @@ async function loadOrderSummary() {
             return;
         }
 
-        let total = 0;
+        let subtotal = 0;
 
         items.forEach(item => {
-            const qty = Number(item.qty || 1);
-            const price = Number(item.price || 0);
-            const subtotal = price * qty;
-
-            total += subtotal;
+            const qty      = Number(item.qty   || 1);
+            const price    = Number(item.price || 0);
+            const lineTotal = price * qty;
+            subtotal += lineTotal;
 
             container.innerHTML += `
                 <div class="d-flex justify-content-between mb-2">
                     <span>${item.name || "Unnamed Product"} (×${qty})</span>
-                    <span>€${subtotal.toFixed(2)}</span>
+                    <span>€${lineTotal.toFixed(2)}</span>
                 </div>
             `;
         });
 
-        // Calculate tax based on country
-        const countryCode = document.getElementById("country").value.trim().toUpperCase().substring(0, 2) || "IE";
-        await calculateAndShowTax(total, countryCode, "general");
+        cartSubtotal = subtotal;
+
+        // 1️⃣  Tax
+        const countryCode  = document.getElementById("country").value.trim().toUpperCase().substring(0, 2) || "IE";
+        const priceAfterTax = await calculateAndShowTax(subtotal, countryCode, "general");
+
+        // 2️⃣  Delivery fare
+        const cityInput   = document.getElementById("city").value.trim();
+        const deliveryFee = await calculateAndShowFare(cityInput);
+
+        // 3️⃣  Grand total
+        const grandTotal = priceAfterTax + deliveryFee;
+        totalSpan.innerHTML = `€${grandTotal.toFixed(2)}`;
 
     } catch (err) {
         console.error("Checkout summary error:", err);
@@ -325,30 +417,31 @@ async function loadOrderSummary() {
     }
 }
 
-// Place Order
+// ── Place Order ───────────────────────────────────────────────────────────────
+
 document.getElementById("place-order-btn").addEventListener("click", async () => {
     const payload = {
         user_id: USER_ID,
         payment_method: document.querySelector("input[name='paymentMethod']:checked").value,
         customer: {
             full_name: document.getElementById("fullName").value.trim(),
-            email: document.getElementById("email").value.trim(),
-            phone: document.getElementById("phone").value.trim(),
-            country: document.getElementById("country").value.trim(),
-            address1: document.getElementById("address1").value.trim(),
-            address2: document.getElementById("address2").value.trim(),
-            city: document.getElementById("city").value.trim(),
-            postal: document.getElementById("postal").value.trim()
+            email:     document.getElementById("email").value.trim(),
+            phone:     document.getElementById("phone").value.trim(),
+            country:   document.getElementById("country").value.trim(),
+            address1:  document.getElementById("address1").value.trim(),
+            address2:  document.getElementById("address2").value.trim(),
+            city:      document.getElementById("city").value.trim(),
+            postal:    document.getElementById("postal").value.trim()
         }
     };
 
     if (
         !payload.customer.full_name ||
-        !payload.customer.email ||
-        !payload.customer.phone ||
-        !payload.customer.country ||
+        !payload.customer.email    ||
+        !payload.customer.phone    ||
+        !payload.customer.country  ||
         !payload.customer.address1 ||
-        !payload.customer.city ||
+        !payload.customer.city     ||
         !payload.customer.postal
     ) {
         alert("Please fill all required fields.");
@@ -356,7 +449,7 @@ document.getElementById("place-order-btn").addEventListener("click", async () =>
     }
 
     const btn = document.getElementById("place-order-btn");
-    btn.disabled = true;
+    btn.disabled  = true;
     btn.innerText = "Processing...";
 
     try {
@@ -388,15 +481,16 @@ document.getElementById("place-order-btn").addEventListener("click", async () =>
         console.error("Place order error:", err);
         alert("Something went wrong while placing your order.");
     } finally {
-        btn.disabled = false;
+        btn.disabled  = false;
         btn.innerText = "Place Order";
     }
 });
 
-// Recalculate tax when country changes
+// ── Re-calculate when country OR city changes ─────────────────────────────────
 document.getElementById("country").addEventListener("change", loadOrderSummary);
+document.getElementById("city").addEventListener("change", loadOrderSummary);
 
-// Run on page load
+// ── Boot ──────────────────────────────────────────────────────────────────────
 autoFillLocation();
 loadOrderSummary();
 </script>

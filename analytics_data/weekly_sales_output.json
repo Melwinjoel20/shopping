@@ -1,13 +1,23 @@
 {
-    "total_orders": 5,
-    "total_revenue": 293.0,
-    "total_items_sold": 7,
+    "total_orders": 8,
+    "total_revenue": 440.0,
+    "total_items_sold": 10,
     "top_category": "MenClothes",
     "daily_sales": [
         {
             "day": "Friday",
             "orders": 5,
             "revenue": 293.0
+        },
+        {
+            "day": "Saturday",
+            "orders": 1,
+            "revenue": 49.0
+        },
+        {
+            "day": "Sunday",
+            "orders": 2,
+            "revenue": 98.0
         }
     ],
     "category_sales": [
@@ -18,8 +28,8 @@
         },
         {
             "category": "MenClothes",
-            "items_sold": 5,
-            "revenue": 245.0
+            "items_sold": 8,
+            "revenue": 392.0
         },
         {
             "category": "KidsClothes",
@@ -30,8 +40,8 @@
     "top_products": [
         {
             "name": "Essential Polo Tshirt Set",
-            "qty_sold": 5,
-            "revenue": 245.0
+            "qty_sold": 8,
+            "revenue": 392.0
         },
         {
             "name": "Construction Print Sweatshirt",

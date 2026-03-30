@@ -19,7 +19,8 @@
         "add_to_cart": "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/add-to-cart",
         "view_cart": "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/view-cart",
         "remove_cart_item": "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/remove-cart-item",
-        "place_order": "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/place-order"
+        "place_order": "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/place-order",
+        "tax_calculator":"https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/tax_calculator"
     },
     "orders_table": "Orders",
     "sns_topic_arn": "arn:aws:sns:us-east-1:637423279760:EasyCartOrderNotifications",

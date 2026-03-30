@@ -36,7 +36,14 @@
 
                     <div class="mb-3">
                         <label class="form-label">Country</label>
-                        <input type="text" class="form-control" id="country" value="Ireland" required>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="country" required>
+                            <span class="input-group-text" id="country-flag" style="min-width: 48px; justify-content: center;"></span>
+                        </div>
+                        <div id="geo-status" class="form-text text-muted" style="display: none;">
+                            <span class="spinner-border spinner-border-sm me-1" role="status" style="width: 0.7rem; height: 0.7rem;"></span>
+                            Detecting your location...
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -59,6 +66,31 @@
                             <label class="form-label">Postal Code</label>
                             <input type="text" class="form-control" id="postal" required>
                         </div>
+                    </div>
+
+                    <!-- Verify Address Button -->
+                    <button type="button" class="btn btn-outline-secondary mt-1 mb-3" onclick="verifyAddress()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="me-1 mb-1" viewBox="0 0 16 16">
+                            <path d="M8 1a5 5 0 0 0-5 5c0 4 5 9 5 9s5-5 5-9a5 5 0 0 0-5-5zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
+                        </svg>
+                        Verify address on map
+                    </button>
+
+                    <!-- Map Preview Panel -->
+                    <div id="map-section" class="mb-3" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small id="map-label" class="text-muted fw-semibold"></small>
+                            <small class="text-muted fst-italic">Pin wrong? Edit fields above and verify again.</small>
+                        </div>
+                        <iframe
+                            id="map-frame"
+                            width="100%"
+                            height="300"
+                            frameborder="0"
+                            style="border-radius: 8px; border: 1px solid #dee2e6;"
+                            allowfullscreen
+                            loading="lazy">
+                        </iframe>
                     </div>
 
                 </form>
@@ -96,6 +128,7 @@
                 <h4 class="fw-bold mb-3">Order Summary</h4>
 
                 <div id="order-items"></div>
+                <div id="tax-line"></div>
 
                 <hr>
 
@@ -124,6 +157,7 @@ const PLACE_ORDER_URL = "{{ PLACE_ORDER_URL }}";
 const USER_ID = "{{ request.session.user_id|default:'' }}";
 const ID_TOKEN = "{{ request.session.cognito_id_token|default:'' }}";
 const LOGIN_URL = "{% url 'login' %}";
+const TAX_API_URL = "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/tax_calculator";
 
 // Redirect if not logged in
 if (!USER_ID) {
@@ -131,7 +165,111 @@ if (!USER_ID) {
     window.location.href = LOGIN_URL;
 }
 
-// Load cart items for summary
+// Set flag image using flagcdn.com
+function setCountryFlag(code) {
+    const flagEl = document.getElementById("country-flag");
+    const lower = code.toLowerCase();
+    flagEl.innerHTML = `<img src="https://flagcdn.com/24x18/${lower}.png"
+        alt="${code}" style="width: 24px; height: 18px; border-radius: 2px;">`;
+}
+
+// Auto-fill country and city via Django proxy
+async function autoFillLocation() {
+    const statusEl = document.getElementById("geo-status");
+    statusEl.style.display = "block";
+
+    try {
+        const res = await fetch("/store/get-location/");
+        const data = await res.json();
+
+        const countryField = document.getElementById("country");
+        const cityField = document.getElementById("city");
+
+        if (!countryField.value) {
+            countryField.value = data.country_name || "Ireland";
+        }
+        if (!cityField.value) {
+            cityField.value = data.city || "";
+        }
+
+        if (data.country_code) {
+            setCountryFlag(data.country_code);
+        }
+
+    } catch (err) {
+        console.warn("Geolocation auto-fill failed:", err);
+        const countryField = document.getElementById("country");
+        if (!countryField.value) {
+            countryField.value = "Ireland";
+        }
+        setCountryFlag("IE");
+    } finally {
+        statusEl.style.display = "none";
+    }
+}
+
+// Verify address on Google Maps
+function verifyAddress() {
+    const parts = [
+        document.getElementById("address1").value.trim(),
+        document.getElementById("address2").value.trim(),
+        document.getElementById("city").value.trim(),
+        document.getElementById("postal").value.trim(),
+        document.getElementById("country").value.trim()
+    ].filter(Boolean);
+
+    if (parts.length < 2) {
+        alert("Please fill in at least your address and city before verifying.");
+        return;
+    }
+
+    const fullAddress = parts.join(", ");
+    const encoded = encodeURIComponent(fullAddress);
+
+    document.getElementById("map-label").textContent = fullAddress;
+    document.getElementById("map-frame").src =
+        `https://www.google.com/maps?q=${encoded}&output=embed`;
+    document.getElementById("map-section").style.display = "block";
+}
+
+// Tax calculation
+async function calculateAndShowTax(price, countryCode, category) {
+    try {
+        const res = await fetch(TAX_API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ price, country_code: countryCode, category })
+        });
+        const data = await res.json();
+
+        const taxLine = document.getElementById("tax-line");
+        const totalSpan = document.getElementById("order-total");
+
+        if (data.tax_rate > 0) {
+            taxLine.innerHTML = `
+                <div class="d-flex justify-content-between mb-1 text-muted" style="font-size:0.9rem;">
+                    <span>Subtotal</span>
+                    <span>${data.currency} ${data.original_price.toFixed(2)}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2 text-muted" style="font-size:0.9rem;">
+                    <span>VAT (${data.tax_rate}%)</span>
+                    <span>${data.currency} ${data.tax_amount.toFixed(2)}</span>
+                </div>`;
+            totalSpan.innerHTML = `${data.currency} ${data.final_price.toFixed(2)}`;
+        } else {
+            taxLine.innerHTML = `
+                <div class="d-flex justify-content-between mb-2 text-muted" style="font-size:0.9rem;">
+                    <span>VAT</span>
+                    <span class="text-success">Zero rated</span>
+                </div>`;
+            totalSpan.innerHTML = `€${price.toFixed(2)}`;
+        }
+    } catch (err) {
+        console.warn("Tax calculation failed:", err);
+    }
+}
+
+// Load cart items for order summary
 async function loadOrderSummary() {
     const container = document.getElementById("order-items");
     const totalSpan = document.getElementById("order-total");
@@ -145,7 +283,6 @@ async function loadOrderSummary() {
 
         let items = [];
 
-        // Handle API Gateway wrapped response
         if (raw.body) {
             items = JSON.parse(raw.body);
         } else if (Array.isArray(raw)) {
@@ -177,7 +314,9 @@ async function loadOrderSummary() {
             `;
         });
 
-        totalSpan.innerHTML = `€${total.toFixed(2)}`;
+        // Calculate tax based on country
+        const countryCode = document.getElementById("country").value.trim().toUpperCase().substring(0, 2) || "IE";
+        await calculateAndShowTax(total, countryCode, "general");
 
     } catch (err) {
         console.error("Checkout summary error:", err);
@@ -185,7 +324,6 @@ async function loadOrderSummary() {
         totalSpan.innerHTML = "€0.00";
     }
 }
-
 
 // Place Order
 document.getElementById("place-order-btn").addEventListener("click", async () => {
@@ -204,7 +342,6 @@ document.getElementById("place-order-btn").addEventListener("click", async () =>
         }
     };
 
-    // Basic validation
     if (
         !payload.customer.full_name ||
         !payload.customer.email ||
@@ -256,6 +393,11 @@ document.getElementById("place-order-btn").addEventListener("click", async () =>
     }
 });
 
+// Recalculate tax when country changes
+document.getElementById("country").addEventListener("change", loadOrderSummary);
+
+// Run on page load
+autoFillLocation();
 loadOrderSummary();
 </script>
 {% endblock %}

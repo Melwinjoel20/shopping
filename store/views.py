@@ -9,6 +9,8 @@ from botocore.config import Config
 import hmac
 import hashlib
 import base64
+import requests
+from django.http import JsonResponse
 
 
 # =========================
@@ -568,3 +570,27 @@ def admin_required(view_func):
 
 def offers(request):
     return render(request, "offers.html")
+    
+import requests
+from django.http import JsonResponse
+
+def get_location(request):
+    try:
+        ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR', ''))
+        if ',' in ip:
+            ip = ip.split(',')[0].strip()
+
+        res = requests.get(f'https://ipapi.co/{ip}/json/', timeout=5)
+        data = res.json()
+
+        return JsonResponse({
+            'country_name': data.get('country_name', 'Ireland'),
+            'country_code': data.get('country_code', 'IE'),
+            'city': data.get('city', ''),
+        })
+    except Exception:
+        return JsonResponse({
+            'country_name': 'Ireland',
+            'country_code': 'IE',
+            'city': '',
+        })

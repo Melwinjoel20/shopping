@@ -18,18 +18,13 @@
         </a>
     </div>
 
-    <!-- Status Banner -->
-    <div id="status-banner" class="alert alert-info mb-4">
-        Spark analytics job is starting…
-    </div>
-
     <!-- Summary Cards -->
     <div class="row g-4 mb-5">
         <div class="col-md-3">
             <div class="card shadow-sm border-0 rounded-4 p-3 h-100">
                 <div class="card-body">
                     <h6 class="text-muted">Total Orders</h6>
-                    <h2 class="fw-bold" data-field="total_orders">0</h2>
+                    <h2 class="fw-bold">{{ total_orders|default:"0" }}</h2>
                     <p class="text-success mb-0">Orders placed this week</p>
                 </div>
             </div>
@@ -39,7 +34,7 @@
             <div class="card shadow-sm border-0 rounded-4 p-3 h-100">
                 <div class="card-body">
                     <h6 class="text-muted">Total Revenue</h6>
-                    <h2 class="fw-bold" data-field="total_revenue">€0.00</h2>
+                    <h2 class="fw-bold">€{{ total_revenue|default:"0.00" }}</h2>
                     <p class="text-primary mb-0">Revenue generated this week</p>
                 </div>
             </div>
@@ -49,7 +44,7 @@
             <div class="card shadow-sm border-0 rounded-4 p-3 h-100">
                 <div class="card-body">
                     <h6 class="text-muted">Products Sold</h6>
-                    <h2 class="fw-bold" data-field="total_items_sold">0</h2>
+                    <h2 class="fw-bold">{{ total_items_sold|default:"0" }}</h2>
                     <p class="text-warning mb-0">Items sold across all orders</p>
                 </div>
             </div>
@@ -59,7 +54,7 @@
             <div class="card shadow-sm border-0 rounded-4 p-3 h-100">
                 <div class="card-body">
                     <h6 class="text-muted">Top Category</h6>
-                    <h2 class="fw-bold" data-field="top_category">N/A</h2>
+                    <h2 class="fw-bold">{{ top_category|default:"N/A" }}</h2>
                     <p class="text-danger mb-0">Best performing category</p>
                 </div>
             </div>
@@ -79,10 +74,20 @@
                         <th>Revenue (€)</th>
                     </tr>
                 </thead>
-                <tbody id="daily-sales-tbody">
-                    <tr>
-                        <td colspan="3" class="text-center text-muted">Waiting for analytics data...</td>
-                    </tr>
+                <tbody>
+                    {% if daily_sales %}
+                        {% for row in daily_sales %}
+                        <tr>
+                            <td>{{ row.day }}</td>
+                            <td>{{ row.orders }}</td>
+                            <td>€{{ row.revenue }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No sales data available.</td>
+                        </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>
@@ -101,10 +106,20 @@
                         <th>Revenue (€)</th>
                     </tr>
                 </thead>
-                <tbody id="category-sales-tbody">
-                    <tr>
-                        <td colspan="3" class="text-center text-muted">Waiting for analytics data...</td>
-                    </tr>
+                <tbody>
+                    {% if category_sales %}
+                        {% for row in category_sales %}
+                        <tr>
+                            <td>{{ row.category }}</td>
+                            <td>{{ row.items_sold }}</td>
+                            <td>€{{ row.revenue }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No category sales data available.</td>
+                        </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>
@@ -123,10 +138,20 @@
                         <th>Revenue (€)</th>
                     </tr>
                 </thead>
-                <tbody id="top-products-tbody">
-                    <tr>
-                        <td colspan="3" class="text-center text-muted">Waiting for analytics data...</td>
-                    </tr>
+                <tbody>
+                    {% if top_products %}
+                        {% for row in top_products %}
+                        <tr>
+                            <td>{{ row.name }}</td>
+                            <td>{{ row.qty_sold }}</td>
+                            <td>€{{ row.revenue }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">No product sales data available.</td>
+                        </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>
@@ -136,122 +161,12 @@
     <div class="card shadow-sm border-0 rounded-4 p-4 bg-light">
         <h4 class="mb-3">Technical Insight</h4>
         <p class="mb-0">
-            This weekly sales dashboard is powered by
-            <strong>Apache Spark on AWS Glue</strong>.
-            The analytics pipeline processes order data in parallel and generates
-            weekly business insights including revenue trends, category performance,
-            and top-selling products.
+            This weekly sales dashboard is designed to process order data using 
+            <strong>parallel analytics with Apache Spark</strong>. 
+            The system aggregates order-level sales information to generate 
+            category-wise performance, top-selling products, and weekly business insights.
         </p>
     </div>
 
 </div>
-
-<script>
-(async () => {
-    const banner = document.getElementById("status-banner");
-
-    // 1. Trigger Glue job
-    let runId;
-    try {
-        const res = await fetch("{% url 'admin_sales_trigger' %}", {
-            method: "POST",
-            headers: {
-                "X-CSRFToken": "{{ csrf_token }}"
-            }
-        });
-
-        const body = await res.json();
-        if (!res.ok) throw new Error(body.error || "Unknown error");
-
-        runId = body.run_id;
-        banner.className = "alert alert-info mb-4";
-        banner.textContent = "Spark job running… this may take a few minutes.";
-
-    } catch (e) {
-        banner.className = "alert alert-danger mb-4";
-        banner.textContent = "Failed to start analytics job: " + e.message;
-        return;
-    }
-
-    // 2. Poll status every 10 seconds
-    const terminalStates = ["SUCCEEDED", "FAILED", "ERROR", "TIMEOUT", "STOPPED"];
-    let state = "";
-
-    while (!terminalStates.includes(state)) {
-        await new Promise(resolve => setTimeout(resolve, 10000));
-
-        try {
-            const res = await fetch(`{% url 'admin_sales_status' %}?run_id=${runId}`);
-            const body = await res.json();
-
-            if (!res.ok) throw new Error(body.error || "Unknown status error");
-
-            state = body.state || "";
-            banner.className = "alert alert-info mb-4";
-            banner.textContent = `Spark job status: ${state}...`;
-
-        } catch (e) {
-            banner.className = "alert alert-warning mb-4";
-            banner.textContent = "Temporary issue checking job status. Retrying...";
-        }
-    }
-
-    // 3. If job failed, stop here
-    if (state !== "SUCCEEDED") {
-        banner.className = "alert alert-danger mb-4";
-        banner.textContent = `Analytics job ended with status: ${state}`;
-        return;
-    }
-
-    // 4. Fetch final analytics data
-    try {
-        const res = await fetch("{% url 'admin_sales_data' %}");
-        const data = await res.json();
-
-        if (!res.ok) throw new Error(data.error || "Unknown data error");
-
-        // Populate summary cards
-        document.querySelector("[data-field='total_orders']").textContent = data.total_orders ?? 0;
-        document.querySelector("[data-field='total_revenue']").textContent = "€" + (data.total_revenue ?? "0.00");
-        document.querySelector("[data-field='total_items_sold']").textContent = data.total_items_sold ?? 0;
-        document.querySelector("[data-field='top_category']").textContent = data.top_category ?? "N/A";
-
-        // Populate tables
-        populateTable("daily-sales-tbody", data.daily_sales ?? [], ["day", "orders", "revenue"]);
-        populateTable("category-sales-tbody", data.category_sales ?? [], ["category", "items_sold", "revenue"]);
-        populateTable("top-products-tbody", data.top_products ?? [], ["name", "qty_sold", "revenue"]);
-
-        banner.className = "alert alert-success mb-4";
-        banner.textContent = "Analytics loaded successfully.";
-
-    } catch (e) {
-        banner.className = "alert alert-danger mb-4";
-        banner.textContent = "Failed to load analytics data: " + e.message;
-    }
-})();
-
-function populateTable(tbodyId, rows, fields) {
-    const tbody = document.getElementById(tbodyId);
-    if (!tbody) return;
-
-    if (!rows.length) {
-        tbody.innerHTML = `<tr>
-            <td colspan="${fields.length}" class="text-center text-muted">No data available.</td>
-        </tr>`;
-        return;
-    }
-
-    tbody.innerHTML = rows.map(row => {
-        return "<tr>" + fields.map(field => {
-            let value = row[field] ?? "";
-
-            if (field === "revenue") {
-                value = "€" + value;
-            }
-
-            return `<td>${value}</td>`;
-        }).join("") + "</tr>";
-    }).join("");
-}
-</script>
 {% endblock %}

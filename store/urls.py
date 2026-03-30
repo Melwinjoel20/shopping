@@ -24,6 +24,8 @@ urlpatterns = [
      path("admin-sales-dashboard/", views_admin.admin_sales_dashboard, name="admin_sales_dashboard"),
      path('get-location/', views.get_location, name='get_location'),
      path("offers/", views.offers, name="offers"),
+     path("trigger-sales-report/", views_admin.trigger_sales_report, name="trigger_sales_report"),
+     path("check-report-status/", views_admin.check_report_status, name="check_report_status"),
 
 
 ]

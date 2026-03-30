@@ -1,10 +1,10 @@
 from decimal import Decimal
 import boto3
 import uuid
-import time
 from django.conf import settings
 from django.shortcuts import render, redirect
 from django.contrib import messages
+from django.http import JsonResponse
 from .views import admin_required
 import json
 
@@ -183,52 +183,6 @@ def admin_delete_product(request, category, product_id):
 
 
 # =========================
-# GLUE: TRIGGER JOB
-# =========================
-def run_glue_job():
-    try:
-        glue = boto3.client("glue", region_name=REGION)
-
-        # Check if job is already running — avoid ConcurrentRunsExceededException
-        runs = glue.get_job_runs(JobName=GLUE_JOB, MaxResults=1)
-        if runs["JobRuns"] and runs["JobRuns"][0]["JobRunState"] in ("RUNNING", "STARTING"):
-            run_id = runs["JobRuns"][0]["Id"]
-            print(f"⏳ Glue job already running — reusing RunId: {run_id}")
-        else:
-            response = glue.start_job_run(JobName=GLUE_JOB)
-            run_id   = response["JobRunId"]
-            print(f"✅ Glue job started — RunId: {run_id}")
-
-        # Poll until complete
-        max_wait   = 600
-        poll_every = 15
-        elapsed    = 0
-
-        while elapsed < max_wait:
-            time.sleep(poll_every)
-            elapsed    += poll_every
-            status      = glue.get_job_run(JobName=GLUE_JOB, RunId=run_id)
-            state       = status["JobRun"]["JobRunState"]
-            print(f"⏳ Glue state: {state} ({elapsed}s)")
-
-            if state == "SUCCEEDED":
-                print("✅ Glue job completed")
-                return True
-
-            if state in ("FAILED", "ERROR", "TIMEOUT", "STOPPED"):
-                error = status["JobRun"].get("ErrorMessage", "No details")
-                print(f"❌ Glue job failed — {state}: {error}")
-                return False
-
-        print("❌ Glue job timed out")
-        return False
-
-    except Exception as e:
-        print(f"❌ Failed to trigger Glue job: {e}")
-        return False
-
-
-# =========================
 # GLUE: READ OUTPUT FROM S3
 # =========================
 def read_glue_output():
@@ -236,11 +190,57 @@ def read_glue_output():
         s3   = boto3.client("s3", region_name=REGION)
         obj  = s3.get_object(Bucket=BUCKET, Key=OUTPUT_KEY)
         data = json.loads(obj["Body"].read().decode("utf-8"))
-        print("✅ Analytics output loaded from S3")
+        print("Analytics output loaded from S3")
         return data
     except Exception as e:
-        print(f"❌ Failed to read Glue output from S3: {e}")
+        print(f"Failed to read Glue output from S3: {e}")
         return None
+
+
+# =========================
+# TRIGGER ENDPOINT
+# =========================
+@admin_required
+def trigger_sales_report(request):
+    try:
+        glue = boto3.client("glue", region_name=REGION)
+        runs = glue.get_job_runs(JobName=GLUE_JOB, MaxResults=1)
+        if runs["JobRuns"] and runs["JobRuns"][0]["JobRunState"] in ("RUNNING", "STARTING"):
+            pass  # already running, don't start another
+        else:
+            glue.start_job_run(JobName=GLUE_JOB)
+        return JsonResponse({"status": "triggered"})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)})
+
+
+# =========================
+# POLL ENDPOINT
+# =========================
+@admin_required
+def check_report_status(request):
+    try:
+        glue = boto3.client("glue", region_name=REGION)
+        runs = glue.get_job_runs(JobName=GLUE_JOB, MaxResults=1)
+
+        if not runs["JobRuns"]:
+            return JsonResponse({"status": "no_runs"})
+
+        state = runs["JobRuns"][0]["JobRunState"]
+
+        if state == "SUCCEEDED":
+            analytics = read_glue_output()
+            if not analytics:
+                return JsonResponse({"status": "error", "message": "No data in S3"})
+            return JsonResponse({"status": "ready", "data": analytics})
+
+        if state in ("FAILED", "ERROR", "TIMEOUT", "STOPPED"):
+            return JsonResponse({"status": "failed"})
+
+        return JsonResponse({"status": "running"})
+
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)})
 
 
 # =========================
@@ -248,43 +248,12 @@ def read_glue_output():
 # =========================
 @admin_required
 def admin_sales_dashboard(request):
-
-    empty_context = {
-        "total_orders":     0,
-        "total_revenue":    0,
+    return render(request, "admin/admin_sales_dashboard.html", {
+        "total_orders": 0,
+        "total_revenue": 0,
         "total_items_sold": 0,
-        "top_category":     "N/A",
-        "daily_sales":      [],
-        "category_sales":   [],
-        "top_products":     [],
-    }
-
-    try:
-        glue_ok = run_glue_job()
-
-        if not glue_ok:
-            messages.error(request, "Spark analytics (Glue) failed to run.")
-            return render(request, "admin/admin_sales_dashboard.html", empty_context)
-
-        analytics = read_glue_output()
-
-        if not analytics:
-            messages.error(request, "No analytics data found in S3.")
-            return render(request, "admin/admin_sales_dashboard.html", empty_context)
-
-        context = {
-            "total_orders":     analytics.get("total_orders", 0),
-            "total_revenue":    analytics.get("total_revenue", 0),
-            "total_items_sold": analytics.get("total_items_sold", 0),
-            "top_category":     analytics.get("top_category", "N/A"),
-            "daily_sales":      analytics.get("daily_sales", []),
-            "category_sales":   analytics.get("category_sales", []),
-            "top_products":     analytics.get("top_products", []),
-        }
-
-        return render(request, "admin/admin_sales_dashboard.html", context)
-
-    except Exception as e:
-        print(f"❌ Weekly analytics dashboard failed: {e}")
-        messages.error(request, "Failed to generate weekly sales analytics.")
-        return render(request, "admin/admin_sales_dashboard.html", empty_context)
+        "top_category": "N/A",
+        "daily_sales": [],
+        "category_sales": [],
+        "top_products": [],
+    })

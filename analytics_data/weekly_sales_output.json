@@ -1,57 +1,37 @@
 {
-    "total_orders": 8,
-    "total_revenue": 440.0,
-    "total_items_sold": 10,
+    "total_orders": 4,
+    "total_revenue": 196.0,
+    "total_items_sold": 4,
     "top_category": "MenClothes",
     "daily_sales": [
         {
             "day": "Friday",
-            "orders": 5,
-            "revenue": 293.0
+            "orders": 2,
+            "revenue": 98.0
         },
         {
-            "day": "Saturday",
+            "day": "Sunday",
             "orders": 1,
             "revenue": 49.0
         },
         {
-            "day": "Sunday",
-            "orders": 2,
-            "revenue": 98.0
+            "day": "Monday",
+            "orders": 1,
+            "revenue": 49.0
         }
     ],
     "category_sales": [
         {
-            "category": "WomenClothes",
-            "items_sold": 1,
-            "revenue": 29.0
-        },
-        {
             "category": "MenClothes",
-            "items_sold": 8,
-            "revenue": 392.0
-        },
-        {
-            "category": "KidsClothes",
-            "items_sold": 1,
-            "revenue": 19.0
+            "items_sold": 4,
+            "revenue": 196.0
         }
     ],
     "top_products": [
         {
             "name": "Essential Polo Tshirt Set",
-            "qty_sold": 8,
-            "revenue": 392.0
-        },
-        {
-            "name": "Construction Print Sweatshirt",
-            "qty_sold": 1,
-            "revenue": 19.0
-        },
-        {
-            "name": "White Ribbed Top",
-            "qty_sold": 1,
-            "revenue": 29.0
+            "qty_sold": 4,
+            "revenue": 196.0
         }
     ]
 }

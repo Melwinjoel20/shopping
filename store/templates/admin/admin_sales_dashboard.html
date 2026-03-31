@@ -4,6 +4,16 @@
 {% block hero %}{% endblock %}
 
 {% block content %}
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" style="position:fixed;top:0;left:0;width:100%;height:100%;
+     background:rgba(0,0,0,0.6);z-index:9999;display:flex;flex-direction:column;
+     align-items:center;justify-content:center;color:white;">
+    <div class="spinner-border mb-3" role="status"></div>
+    <h5>Generating Weekly Sales Report...</h5>
+    <p class="text-white-50">Please wait while analytics are processed using Spark.</p>
+</div>
+
 <div class="container py-4">
 
     <!-- Header -->
@@ -24,7 +34,7 @@
             <div class="card shadow-sm border-0 rounded-4 p-3 h-100">
                 <div class="card-body">
                     <h6 class="text-muted">Total Orders</h6>
-                    <h2 class="fw-bold">{{ total_orders|default:"0" }}</h2>
+                    <h2 class="fw-bold" data-stat="total_orders">--</h2>
                     <p class="text-success mb-0">Orders placed this week</p>
                 </div>
             </div>
@@ -34,7 +44,7 @@
             <div class="card shadow-sm border-0 rounded-4 p-3 h-100">
                 <div class="card-body">
                     <h6 class="text-muted">Total Revenue</h6>
-                    <h2 class="fw-bold">€{{ total_revenue|default:"0.00" }}</h2>
+                    <h2 class="fw-bold" data-stat="total_revenue">--</h2>
                     <p class="text-primary mb-0">Revenue generated this week</p>
                 </div>
             </div>
@@ -44,7 +54,7 @@
             <div class="card shadow-sm border-0 rounded-4 p-3 h-100">
                 <div class="card-body">
                     <h6 class="text-muted">Products Sold</h6>
-                    <h2 class="fw-bold">{{ total_items_sold|default:"0" }}</h2>
+                    <h2 class="fw-bold" data-stat="total_items_sold">--</h2>
                     <p class="text-warning mb-0">Items sold across all orders</p>
                 </div>
             </div>
@@ -54,7 +64,7 @@
             <div class="card shadow-sm border-0 rounded-4 p-3 h-100">
                 <div class="card-body">
                     <h6 class="text-muted">Top Category</h6>
-                    <h2 class="fw-bold">{{ top_category|default:"N/A" }}</h2>
+                    <h2 class="fw-bold" data-stat="top_category">--</h2>
                     <p class="text-danger mb-0">Best performing category</p>
                 </div>
             </div>
@@ -64,9 +74,8 @@
     <!-- Daily Sales Breakdown -->
     <div class="card shadow-sm border-0 rounded-4 p-4 mb-5">
         <h4 class="mb-3">Daily Sales Breakdown</h4>
-
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table id="daily-sales-table" class="table table-hover align-middle">
                 <thead class="table-light">
                     <tr>
                         <th>Day</th>
@@ -75,19 +84,9 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% if daily_sales %}
-                        {% for row in daily_sales %}
-                        <tr>
-                            <td>{{ row.day }}</td>
-                            <td>{{ row.orders }}</td>
-                            <td>€{{ row.revenue }}</td>
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="3" class="text-center text-muted">No sales data available.</td>
-                        </tr>
-                    {% endif %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted">Loading...</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -96,9 +95,8 @@
     <!-- Category Performance -->
     <div class="card shadow-sm border-0 rounded-4 p-4 mb-5">
         <h4 class="mb-3">Category Performance</h4>
-
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table id="category-sales-table" class="table table-hover align-middle">
                 <thead class="table-light">
                     <tr>
                         <th>Category</th>
@@ -107,19 +105,9 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% if category_sales %}
-                        {% for row in category_sales %}
-                        <tr>
-                            <td>{{ row.category }}</td>
-                            <td>{{ row.items_sold }}</td>
-                            <td>€{{ row.revenue }}</td>
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="3" class="text-center text-muted">No category sales data available.</td>
-                        </tr>
-                    {% endif %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted">Loading...</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -128,9 +116,8 @@
     <!-- Top Selling Products -->
     <div class="card shadow-sm border-0 rounded-4 p-4 mb-5">
         <h4 class="mb-3">Top Selling Products</h4>
-
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table id="top-products-table" class="table table-hover align-middle">
                 <thead class="table-light">
                     <tr>
                         <th>Product Name</th>
@@ -139,19 +126,9 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% if top_products %}
-                        {% for row in top_products %}
-                        <tr>
-                            <td>{{ row.name }}</td>
-                            <td>{{ row.qty_sold }}</td>
-                            <td>€{{ row.revenue }}</td>
-                        </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="3" class="text-center text-muted">No product sales data available.</td>
-                        </tr>
-                    {% endif %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted">Loading...</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -161,12 +138,65 @@
     <div class="card shadow-sm border-0 rounded-4 p-4 bg-light">
         <h4 class="mb-3">Technical Insight</h4>
         <p class="mb-0">
-            This weekly sales dashboard is designed to process order data using 
-            <strong>parallel analytics with Apache Spark</strong>. 
-            The system aggregates order-level sales information to generate 
+            This weekly sales dashboard is designed to process order data using
+            <strong>parallel analytics with Apache Spark</strong>.
+            The system aggregates order-level sales information to generate
             category-wise performance, top-selling products, and weekly business insights.
         </p>
     </div>
 
 </div>
+
+<script>
+const TRIGGER_URL = "{% url 'trigger_sales_report' %}";
+const POLL_URL    = "{% url 'check_report_status' %}";
+
+function fillTable(tableId, rows, keys) {
+    const tbody = document.querySelector('#' + tableId + ' tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (!rows || rows.length === 0) {
+        const cols = keys.length;
+        tbody.innerHTML = `<tr><td colspan="${cols}" class="text-center text-muted">No data available.</td></tr>`;
+        return;
+    }
+    rows.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = keys.map(k => `<td>${row[k] ?? '-'}</td>`).join('');
+        tbody.appendChild(tr);
+    });
+}
+
+function applyData(data) {
+    document.querySelectorAll('[data-stat]').forEach(el => {
+        const key = el.dataset.stat;
+        if (data[key] !== undefined) el.textContent = data[key];
+    });
+    fillTable('daily-sales-table',    data.daily_sales    || [], ['day', 'orders', 'revenue']);
+    fillTable('category-sales-table', data.category_sales || [], ['category', 'items_sold', 'revenue']);
+    fillTable('top-products-table',   data.top_products   || [], ['name', 'qty_sold', 'revenue']);
+}
+
+function poll() {
+    fetch(POLL_URL)
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'ready') {
+                document.getElementById('loading-overlay').style.display = 'none';
+                applyData(res.data);
+            } else if (res.status === 'failed' || res.status === 'error') {
+                document.getElementById('loading-overlay').innerHTML =
+                    '<div style="text-align:center"><p class="text-danger fs-5">Analytics failed. Please try again.</p>' +
+                    '<a href="" class="btn btn-light mt-2">Retry</a></div>';
+            } else {
+                setTimeout(poll, 5000);
+            }
+        })
+        .catch(() => setTimeout(poll, 5000));
+}
+
+fetch(TRIGGER_URL)
+    .then(() => setTimeout(poll, 5000));
+</script>
+
 {% endblock %}

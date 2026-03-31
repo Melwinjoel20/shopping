@@ -5,6 +5,110 @@
 
 {% block content %}
 
+<style>
+.checkout-card {
+    background: #fff;
+    border: 0.5px solid rgba(0,0,0,0.12);
+    border-radius: 14px;
+    padding: 1.75rem;
+    margin-bottom: 1.25rem;
+}
+.checkout-card h4 {
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0 0 1.25rem;
+    color: #111;
+}
+.order-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+.order-row .label {
+    font-size: 13px;
+    color: #666;
+    margin: 0;
+}
+.order-row .sub-label {
+    font-size: 11px;
+    color: #999;
+    margin: 2px 0 0;
+}
+.order-row .value {
+    font-size: 13px;
+    color: #666;
+    margin: 0;
+    white-space: nowrap;
+    margin-left: 12px;
+}
+.order-divider {
+    border: none;
+    border-top: 0.5px solid rgba(0,0,0,0.1);
+    margin: 14px 0;
+}
+.discount-pill {
+    background: #f0faf5;
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+.discount-pill .d-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #1a7f4b;
+    margin: 0;
+}
+.discount-pill .d-sub {
+    font-size: 11px;
+    color: #2d9e62;
+    margin: 2px 0 0;
+    opacity: 0.85;
+}
+.discount-pill .d-amount {
+    font-size: 13px;
+    font-weight: 500;
+    color: #1a7f4b;
+    margin: 0;
+}
+.order-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2px;
+}
+.order-total-row .total-label {
+    font-size: 15px;
+    font-weight: 500;
+    color: #111;
+    margin: 0;
+}
+.order-total-row .total-value {
+    font-size: 22px;
+    font-weight: 500;
+    color: #111;
+    margin: 0;
+}
+.place-order-btn {
+    width: 100%;
+    margin-top: 1.25rem;
+    padding: 13px;
+    background: #1a7f4b;
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.place-order-btn:hover { background: #156039; }
+.place-order-btn:disabled { background: #aaa; cursor: not-allowed; }
+</style>
+
 <div class="container mt-5 mb-5">
 
     <h2 class="mb-4 fw-bold">🛍 Checkout</h2>
@@ -13,416 +117,421 @@
 
         <div class="col-md-7">
 
-            <div class="card shadow-sm p-4 mb-4">
-
-                <h4 class="fw-bold mb-3">Customer Details</h4>
+            <div class="checkout-card">
+                <h4>Customer details</h4>
 
                 <form id="checkout-form">
 
                     <div class="mb-3">
-                        <label class="form-label">Full Name</label>
+                        <label class="form-label" style="font-size:13px; color:#555;">Full name</label>
                         <input type="text" class="form-control" id="fullName" required>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Email</label>
+                        <label class="form-label" style="font-size:13px; color:#555;">Email</label>
                         <input type="email" class="form-control" id="email" required>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Phone</label>
+                        <label class="form-label" style="font-size:13px; color:#555;">Phone</label>
                         <input type="text" class="form-control" id="phone" required>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Country</label>
+                        <label class="form-label" style="font-size:13px; color:#555;">Country</label>
                         <div class="input-group">
                             <input type="text" class="form-control" id="country" required>
-                            <span class="input-group-text" id="country-flag" style="min-width: 48px; justify-content: center;"></span>
+                            <span class="input-group-text" id="country-flag" style="min-width:48px; justify-content:center;"></span>
                         </div>
-                        <div id="geo-status" class="form-text text-muted" style="display: none;">
-                            <span class="spinner-border spinner-border-sm me-1" role="status" style="width: 0.7rem; height: 0.7rem;"></span>
+                        <div id="geo-status" class="form-text text-muted" style="display:none;">
+                            <span class="spinner-border spinner-border-sm me-1" role="status" style="width:0.7rem;height:0.7rem;"></span>
                             Detecting your location...
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Address Line 1</label>
+                        <label class="form-label" style="font-size:13px; color:#555;">Address line 1</label>
                         <input type="text" class="form-control" id="address1" required>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Address Line 2</label>
+                        <label class="form-label" style="font-size:13px; color:#555;">Address line 2</label>
                         <input type="text" class="form-control" id="address2">
                     </div>
 
                     <div class="row">
                         <div class="col-md-8 mb-3">
-                            <label class="form-label">City</label>
+                            <label class="form-label" style="font-size:13px; color:#555;">City</label>
                             <input type="text" class="form-control" id="city" required>
                         </div>
-
                         <div class="col-md-4 mb-3">
-                            <label class="form-label">Postal Code</label>
+                            <label class="form-label" style="font-size:13px; color:#555;">Postal code</label>
                             <input type="text" class="form-control" id="postal" required>
                         </div>
                     </div>
 
-                    <!-- Verify Address Button -->
-                    <button type="button" class="btn btn-outline-secondary mt-1 mb-3" onclick="verifyAddress()">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="me-1 mb-1" viewBox="0 0 16 16">
+                    <button type="button" class="btn btn-outline-secondary mt-1 mb-3" onclick="verifyAddress()" style="font-size:13px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" class="me-1 mb-1" viewBox="0 0 16 16">
                             <path d="M8 1a5 5 0 0 0-5 5c0 4 5 9 5 9s5-5 5-9a5 5 0 0 0-5-5zm0 7a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
                         </svg>
                         Verify address on map
                     </button>
 
-                    <!-- Map Preview Panel -->
-                    <div id="map-section" class="mb-3" style="display: none;">
+                    <div id="map-section" class="mb-3" style="display:none;">
                         <div class="d-flex justify-content-between align-items-center mb-1">
-                            <small id="map-label" class="text-muted fw-semibold"></small>
-                            <small class="text-muted fst-italic">Pin wrong? Edit fields above and verify again.</small>
+                            <small id="map-label" class="text-muted fw-semibold" style="font-size:12px;"></small>
+                            <small class="text-muted fst-italic" style="font-size:11px;">Pin wrong? Edit fields and verify again.</small>
                         </div>
-                        <iframe
-                            id="map-frame"
-                            width="100%"
-                            height="300"
-                            frameborder="0"
-                            style="border-radius: 8px; border: 1px solid #dee2e6;"
-                            allowfullscreen
-                            loading="lazy">
+                        <iframe id="map-frame" width="100%" height="280" frameborder="0"
+                            style="border-radius:10px; border:0.5px solid rgba(0,0,0,0.12);"
+                            allowfullscreen loading="lazy">
                         </iframe>
                     </div>
 
                 </form>
-
             </div>
 
-            <!-- Payment Section -->
-            <div class="card shadow-sm p-4 mb-4">
-
-                <h4 class="fw-bold mb-3">Payment</h4>
-
+            <!-- Payment -->
+            <div class="checkout-card">
+                <h4>Payment</h4>
                 <div class="form-check mb-2">
                     <input class="form-check-input" type="radio" name="paymentMethod" value="card" checked>
-                    <label class="form-check-label">Credit/Debit Card</label>
+                    <label class="form-check-label" style="font-size:14px;">Credit / Debit card</label>
                 </div>
-
                 <div class="form-check mb-2">
                     <input class="form-check-input" type="radio" name="paymentMethod" value="paypal">
-                    <label class="form-check-label">PayPal</label>
+                    <label class="form-check-label" style="font-size:14px;">PayPal</label>
                 </div>
-
-                <div class="form-check mb-2">
+                <div class="form-check">
                     <input class="form-check-input" type="radio" name="paymentMethod" value="cod">
-                    <label class="form-check-label">Cash on Delivery</label>
+                    <label class="form-check-label" style="font-size:14px;">Cash on delivery</label>
                 </div>
-
             </div>
 
         </div>
 
+        <!-- Order Summary -->
         <div class="col-md-5">
+            <div class="checkout-card">
+                <h4>Order summary</h4>
 
-            <div class="card shadow-sm p-4 mb-4">
-
-                <h4 class="fw-bold mb-3">Order Summary</h4>
-
+                <!-- Items -->
                 <div id="order-items"></div>
-                <div id="tax-line"></div>
 
-                <!-- Delivery fee line — populated by fare calculator -->
+                <hr class="order-divider">
+
+                <!-- Subtotal / Tax / Delivery -->
+                <div id="tax-line"></div>
                 <div id="delivery-line"></div>
 
-                <hr>
+                <!-- Festival discount pill (auto-applied) -->
+                <div id="festival-banner" style="display:none; margin-top:10px;">
+                    <div class="discount-pill">
+                        <div>
+                            <p class="d-name" id="festival-name-label"></p>
+                            <p class="d-sub" id="festival-sub-label"></p>
+                        </div>
+                        <p class="d-amount" id="festival-amount-label"></p>
+                    </div>
+                </div>
 
-                <p class="fw-bold fs-5">
-                    Total: <span id="order-total" class="text-primary">€0.00</span>
-                </p>
+                <hr class="order-divider">
 
-                <button type="button" class="btn btn-success w-100 mt-3" id="place-order-btn">
-                    Place Order
-                </button>
+                <div class="order-total-row">
+                    <p class="total-label">Total</p>
+                    <p class="total-value" id="order-total">€0.00</p>
+                </div>
+
+                <button class="place-order-btn" id="place-order-btn">Place order</button>
 
             </div>
-
         </div>
 
     </div>
-
 </div>
 
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-const VIEW_CART_URL = "{{ VIEW_CART_URL }}";
+const VIEW_CART_URL   = "{{ VIEW_CART_URL }}";
 const PLACE_ORDER_URL = "{{ PLACE_ORDER_URL }}";
-const USER_ID = "{{ request.session.user_id|default:'' }}";
-const ID_TOKEN = "{{ request.session.cognito_id_token|default:'' }}";
-const LOGIN_URL = "{% url 'login' %}";
-const TAX_API_URL = "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/tax_calculator";
-const FARE_API_URL = "https://0v2jl32vw0.execute-api.us-east-1.amazonaws.com/PROD/fare-calculator";
+const USER_ID         = "{{ request.session.user_id|default:'' }}";
+const ID_TOKEN        = "{{ request.session.cognito_id_token|default:'' }}";
+const LOGIN_URL       = "{% url 'login' %}";
+const TAX_API_URL     = "https://nxk175t5ol.execute-api.us-east-1.amazonaws.com/prod/tax_calculator";
+const FARE_API_URL    = "https://0v2jl32vw0.execute-api.us-east-1.amazonaws.com/PROD/fare-calculator";
+const DISCOUNT_API    = "https://yjb1bzfi1i.execute-api.us-east-1.amazonaws.com";
 
-// Store is always shipping from Cork
-const STORE_CITY = "Cork";
-
-// Cities supported by the fare API
+const STORE_CITY       = "Cork";
 const SUPPORTED_CITIES = ["Dublin", "Cork", "Galway", "Limerick", "Waterford", "Belfast"];
 
-// Running totals shared between tax and fare steps
-let cartSubtotal = 0;
-let deliveryFeeRaw = 0;
+const FESTIVAL_MAP = {
+    0:  "New Year",
+    1:  "Valentine's Day",
+    2:  "Women's Day",
+    3:  "Easter",
+    4:  null,
+    5:  "Summer Sale",
+    6:  "Summer Sale",
+    7:  null,
+    8:  null,
+    9:  "Halloween",
+    10: "Diwali",
+    11: "Christmas"
+};
 
-// Redirect if not logged in
+let cartSubtotal   = 0;
+let priceAfterTax  = 0;
+let deliveryFeeRaw = 0;
+let discountAmount = 0;
+let activeFestival = null;
+
 if (!USER_ID) {
     alert("Please log in to continue.");
     window.location.href = LOGIN_URL;
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function setCountryFlag(code) {
-    const flagEl = document.getElementById("country-flag");
-    const lower = code.toLowerCase();
-    flagEl.innerHTML = `<img src="https://flagcdn.com/24x18/${lower}.png"
-        alt="${code}" style="width: 24px; height: 18px; border-radius: 2px;">`;
+    document.getElementById("country-flag").innerHTML =
+        `<img src="https://flagcdn.com/24x18/${code.toLowerCase()}.png" alt="${code}" style="width:24px;height:18px;border-radius:2px;">`;
 }
 
-/**
- * Normalise a free-text city name against the supported list.
- * Matches case-insensitively and allows partial prefix matches
- * (e.g. "galway city" → "Galway").
- */
 function matchSupportedCity(input) {
-    const trimmed = input.trim().toLowerCase();
-    return SUPPORTED_CITIES.find(c => trimmed.startsWith(c.toLowerCase())) || null;
+    const t = input.trim().toLowerCase();
+    return SUPPORTED_CITIES.find(c => t.startsWith(c.toLowerCase())) || null;
 }
 
-// ── Geolocation auto-fill ─────────────────────────────────────────────────────
+function updateGrandTotal() {
+    const grand = Math.max(priceAfterTax + deliveryFeeRaw - discountAmount, 0);
+    document.getElementById("order-total").textContent = `€${grand.toFixed(2)}`;
+}
 
-async function autoFillLocation() {
-    const statusEl = document.getElementById("geo-status");
-    statusEl.style.display = "block";
+// ── Festival offers ───────────────────────────────────────────────────────────
+
+async function loadOffers() {
+    const festivalName = FESTIVAL_MAP[new Date().getMonth()];
+    document.getElementById("festival-banner").style.display = "none";
+    activeFestival = null;
+
+    if (!festivalName) return;
 
     try {
-        const res = await fetch("/store/get-location/");
-        const data = await res.json();
+        const res    = await fetch(`${DISCOUNT_API}/offers`);
+        const data   = await res.json();
+        const offers = data.available_offers || {};
 
-        const countryField = document.getElementById("country");
-        const cityField    = document.getElementById("city");
+        if (!(festivalName in offers)) return;
 
-        if (!countryField.value) countryField.value = data.country_name || "Ireland";
-        if (!cityField.value)    cityField.value    = data.city || "";
-
-        if (data.country_code) setCountryFlag(data.country_code);
-
+        activeFestival = { name: festivalName, rate: Number(offers[festivalName]) };
     } catch (err) {
-        console.warn("Geolocation auto-fill failed:", err);
-        const countryField = document.getElementById("country");
-        if (!countryField.value) countryField.value = "Ireland";
-        setCountryFlag("IE");
-    } finally {
-        statusEl.style.display = "none";
+        console.warn("Could not load festival offers:", err);
     }
 }
 
-// ── Address verification ──────────────────────────────────────────────────────
+function applyDiscount() {
+    const banner = document.getElementById("festival-banner");
+    discountAmount = 0;
 
-function verifyAddress() {
-    const parts = [
-        document.getElementById("address1").value.trim(),
-        document.getElementById("address2").value.trim(),
-        document.getElementById("city").value.trim(),
-        document.getElementById("postal").value.trim(),
-        document.getElementById("country").value.trim()
-    ].filter(Boolean);
-
-    if (parts.length < 2) {
-        alert("Please fill in at least your address and city before verifying.");
+    if (!activeFestival || cartSubtotal === 0) {
+        banner.style.display = "none";
+        updateGrandTotal();
         return;
     }
 
-    const fullAddress = parts.join(", ");
-    const encoded = encodeURIComponent(fullAddress);
+    discountAmount = parseFloat((cartSubtotal * activeFestival.rate).toFixed(2));
+    const pct      = Math.round(activeFestival.rate * 100);
 
-    document.getElementById("map-label").textContent = fullAddress;
-    document.getElementById("map-frame").src =
-        `https://www.google.com/maps?q=${encoded}&output=embed`;
-    document.getElementById("map-section").style.display = "block";
+    document.getElementById("festival-name-label").textContent  = `${activeFestival.name} offer applied`;
+    document.getElementById("festival-sub-label").textContent   = `${pct}% off your order this month`;
+    document.getElementById("festival-amount-label").textContent = `− €${discountAmount.toFixed(2)}`;
+    banner.style.display = "block";
+
+    updateGrandTotal();
 }
 
-// ── Tax calculation ───────────────────────────────────────────────────────────
+// ── Geolocation ───────────────────────────────────────────────────────────────
 
-async function calculateAndShowTax(price, countryCode, category) {
+async function autoFillLocation() {
+    document.getElementById("geo-status").style.display = "block";
     try {
-        const res = await fetch(TAX_API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ price, country_code: countryCode, category })
-        });
+        const res  = await fetch("/store/get-location/");
         const data = await res.json();
-
-        const taxLine  = document.getElementById("tax-line");
-
-        if (data.tax_rate > 0) {
-            taxLine.innerHTML = `
-                <div class="d-flex justify-content-between mb-1 text-muted" style="font-size:0.9rem;">
-                    <span>Subtotal</span>
-                    <span>${data.currency} ${data.original_price.toFixed(2)}</span>
-                </div>
-                <div class="d-flex justify-content-between mb-2 text-muted" style="font-size:0.9rem;">
-                    <span>VAT (${data.tax_rate}%)</span>
-                    <span>${data.currency} ${data.tax_amount.toFixed(2)}</span>
-                </div>`;
-
-            // Return the tax-inclusive price so the fare step can add on top
-            return data.final_price;
-        } else {
-            taxLine.innerHTML = `
-                <div class="d-flex justify-content-between mb-2 text-muted" style="font-size:0.9rem;">
-                    <span>VAT</span>
-                    <span class="text-success">Zero rated</span>
-                </div>`;
-            return price;
-        }
-    } catch (err) {
-        console.warn("Tax calculation failed:", err);
-        return price; // fall back to raw price
+        const cf   = document.getElementById("country");
+        const city = document.getElementById("city");
+        if (!cf.value)   cf.value   = data.country_name || "Ireland";
+        if (!city.value) city.value = data.city || "";
+        if (data.country_code) setCountryFlag(data.country_code);
+    } catch {
+        const cf = document.getElementById("country");
+        if (!cf.value) cf.value = "Ireland";
+        setCountryFlag("IE");
+    } finally {
+        document.getElementById("geo-status").style.display = "none";
     }
 }
 
-// ── Fare / delivery calculation ───────────────────────────────────────────────
+// ── Address map ───────────────────────────────────────────────────────────────
+
+function verifyAddress() {
+    const parts = ["address1","address2","city","postal","country"]
+        .map(id => document.getElementById(id).value.trim()).filter(Boolean);
+    if (parts.length < 2) { alert("Please fill in at least your address and city."); return; }
+    const q = encodeURIComponent(parts.join(", "));
+    document.getElementById("map-label").textContent = parts.join(", ");
+    document.getElementById("map-frame").src = `https://www.google.com/maps?q=${q}&output=embed`;
+    document.getElementById("map-section").style.display = "block";
+}
+
+// ── Tax ───────────────────────────────────────────────────────────────────────
+
+async function calculateAndShowTax(price, countryCode, category) {
+    try {
+        const res  = await fetch(TAX_API_URL, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ price, country_code: countryCode, category })
+        });
+        const data = await res.json();
+        const el   = document.getElementById("tax-line");
+
+        if (data.tax_rate > 0) {
+            el.innerHTML = `
+                <div class="order-row">
+                    <p class="label">Subtotal</p>
+                    <p class="value">${data.currency} ${data.original_price.toFixed(2)}</p>
+                </div>
+                <div class="order-row">
+                    <p class="label">VAT (${data.tax_rate}%)</p>
+                    <p class="value">${data.currency} ${data.tax_amount.toFixed(2)}</p>
+                </div>`;
+            return data.final_price;
+        } else {
+            el.innerHTML = `
+                <div class="order-row">
+                    <p class="label">VAT</p>
+                    <p class="value" style="color:#1a7f4b;">Zero rated</p>
+                </div>`;
+            return price;
+        }
+    } catch { return price; }
+}
+
+// ── Delivery ──────────────────────────────────────────────────────────────────
 
 async function calculateAndShowFare(destinationCity) {
-    const deliveryLine = document.getElementById("delivery-line");
+    const el      = document.getElementById("delivery-line");
     deliveryFeeRaw = 0;
-
-    const matched = matchSupportedCity(destinationCity);
+    const matched  = matchSupportedCity(destinationCity);
 
     if (!matched) {
-        // City not covered — show informational note, no delivery fee
-        deliveryLine.innerHTML = `
-            <div class="d-flex justify-content-between mb-2 text-muted" style="font-size:0.9rem;">
-                <span>🚚 Delivery fee</span>
-                <span class="text-secondary fst-italic">Contact us for a quote</span>
+        el.innerHTML = `
+            <div class="order-row">
+                <p class="label">Delivery</p>
+                <p class="value" style="color:#999; font-style:italic;">Contact us for a quote</p>
             </div>`;
         return 0;
     }
 
     if (matched.toLowerCase() === STORE_CITY.toLowerCase()) {
-        // Delivering within Cork — no fare API call needed
-        deliveryLine.innerHTML = `
-            <div class="d-flex justify-content-between mb-2 text-muted" style="font-size:0.9rem;">
-                <span>🚚 Delivery (Cork local)</span>
-                <span class="text-success">Free</span>
+        el.innerHTML = `
+            <div class="order-row">
+                <p class="label">Delivery (Cork local)</p>
+                <p class="value" style="color:#1a7f4b;">Free</p>
             </div>`;
         return 0;
     }
 
     try {
-        const res = await fetch(FARE_API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+        const res  = await fetch(FARE_API_URL, {
+            method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ from: STORE_CITY, to: matched })
         });
         const data = await res.json();
-
-        const fee = Number(data.fare_raw) || 0;
+        const fee  = Number(data.fare_raw) || 0;
         deliveryFeeRaw = fee;
-
-        deliveryLine.innerHTML = `
-            <div class="d-flex justify-content-between mb-1 text-muted" style="font-size:0.9rem;">
-                <span>🚚 Delivery (${STORE_CITY} → ${matched})</span>
-                <span>€${fee.toFixed(2)}</span>
-            </div>
-            <div class="text-muted mb-2" style="font-size:0.78rem;">
-                ${data.distance_km} km &nbsp;·&nbsp; est. ${data.duration_estimate}
+        el.innerHTML = `
+            <div class="order-row" style="align-items:flex-start;">
+                <div>
+                    <p class="label">Delivery (${STORE_CITY} → ${matched})</p>
+                    <p class="sub-label">${data.distance_km} km &nbsp;·&nbsp; est. ${data.duration_estimate}</p>
+                </div>
+                <p class="value">€${fee.toFixed(2)}</p>
             </div>`;
-
         return fee;
-
-    } catch (err) {
-        console.warn("Fare calculation failed:", err);
-        deliveryLine.innerHTML = `
-            <div class="d-flex justify-content-between mb-2 text-muted" style="font-size:0.9rem;">
-                <span>🚚 Delivery fee</span>
-                <span class="text-danger">Unavailable</span>
+    } catch {
+        el.innerHTML = `
+            <div class="order-row">
+                <p class="label">Delivery</p>
+                <p class="value" style="color:#c0392b;">Unavailable</p>
             </div>`;
         return 0;
     }
 }
 
-// ── Order summary (orchestrates both APIs) ────────────────────────────────────
+// ── Order summary ─────────────────────────────────────────────────────────────
 
 async function loadOrderSummary() {
-    const container  = document.getElementById("order-items");
-    const totalSpan  = document.getElementById("order-total");
-
-    container.innerHTML = `<p class="text-muted">Loading order summary...</p>`;
-    totalSpan.innerHTML = "€0.00";
+    const container = document.getElementById("order-items");
+    container.innerHTML = `<p style="font-size:13px; color:#999;">Loading...</p>`;
+    document.getElementById("order-total").textContent = "€0.00";
 
     try {
         const res = await fetch(`${VIEW_CART_URL}?user_id=${encodeURIComponent(USER_ID)}`);
         const raw = await res.json();
 
         let items = [];
-        if (raw.body) {
-            items = JSON.parse(raw.body);
-        } else if (Array.isArray(raw)) {
-            items = raw;
-        }
+        if (raw.body)            items = JSON.parse(raw.body);
+        else if (Array.isArray(raw)) items = raw;
 
         container.innerHTML = "";
 
         if (!items || items.length === 0) {
-            container.innerHTML = `<p class="text-muted">Your cart is empty.</p>`;
-            totalSpan.innerHTML = "€0.00";
+            container.innerHTML = `<p style="font-size:13px; color:#999;">Your cart is empty.</p>`;
             return;
         }
 
         let subtotal = 0;
-
         items.forEach(item => {
-            const qty      = Number(item.qty   || 1);
-            const price    = Number(item.price || 0);
+            const qty       = Number(item.qty   || 1);
+            const price     = Number(item.price || 0);
             const lineTotal = price * qty;
             subtotal += lineTotal;
-
             container.innerHTML += `
-                <div class="d-flex justify-content-between mb-2">
-                    <span>${item.name || "Unnamed Product"} (×${qty})</span>
-                    <span>€${lineTotal.toFixed(2)}</span>
-                </div>
-            `;
+                <div class="order-row" style="margin-bottom:10px;">
+                    <div>
+                        <p style="font-size:14px; font-weight:500; color:#111; margin:0;">${item.name || "Unnamed product"}</p>
+                        <p style="font-size:11px; color:#999; margin:2px 0 0;">Qty: ${qty}</p>
+                    </div>
+                    <p style="font-size:14px; font-weight:500; color:#111; margin:0; white-space:nowrap; margin-left:12px;">€${lineTotal.toFixed(2)}</p>
+                </div>`;
         });
 
         cartSubtotal = subtotal;
 
-        // 1️⃣  Tax
-        const countryCode  = document.getElementById("country").value.trim().toUpperCase().substring(0, 2) || "IE";
-        const priceAfterTax = await calculateAndShowTax(subtotal, countryCode, "general");
+        const cc      = document.getElementById("country").value.trim().toUpperCase().substring(0,2) || "IE";
+        priceAfterTax = await calculateAndShowTax(subtotal, cc, "general");
+        deliveryFeeRaw = await calculateAndShowFare(document.getElementById("city").value.trim());
 
-        // 2️⃣  Delivery fare
-        const cityInput   = document.getElementById("city").value.trim();
-        const deliveryFee = await calculateAndShowFare(cityInput);
-
-        // 3️⃣  Grand total
-        const grandTotal = priceAfterTax + deliveryFee;
-        totalSpan.innerHTML = `€${grandTotal.toFixed(2)}`;
+        applyDiscount();
+        updateGrandTotal();
 
     } catch (err) {
-        console.error("Checkout summary error:", err);
-        container.innerHTML = `<p class="text-danger">Failed to load order summary.</p>`;
-        totalSpan.innerHTML = "€0.00";
+        console.error(err);
+        document.getElementById("order-items").innerHTML =
+            `<p style="font-size:13px; color:#c0392b;">Failed to load order summary.</p>`;
     }
 }
 
-// ── Place Order ───────────────────────────────────────────────────────────────
+// ── Place order ───────────────────────────────────────────────────────────────
 
 document.getElementById("place-order-btn").addEventListener("click", async () => {
     const payload = {
         user_id: USER_ID,
-        payment_method: document.querySelector("input[name='paymentMethod']:checked").value,
+        payment_method:    document.querySelector("input[name='paymentMethod']:checked").value,
+        festival_discount: activeFestival ? activeFestival.name : null,
+        discount_amount:   discountAmount,
         customer: {
             full_name: document.getElementById("fullName").value.trim(),
             email:     document.getElementById("email").value.trim(),
@@ -435,33 +544,22 @@ document.getElementById("place-order-btn").addEventListener("click", async () =>
         }
     };
 
-    if (
-        !payload.customer.full_name ||
-        !payload.customer.email    ||
-        !payload.customer.phone    ||
-        !payload.customer.country  ||
-        !payload.customer.address1 ||
-        !payload.customer.city     ||
-        !payload.customer.postal
-    ) {
+    const c = payload.customer;
+    if (!c.full_name || !c.email || !c.phone || !c.country || !c.address1 || !c.city || !c.postal) {
         alert("Please fill all required fields.");
         return;
     }
 
     const btn = document.getElementById("place-order-btn");
     btn.disabled  = true;
-    btn.innerText = "Processing...";
+    btn.textContent = "Processing...";
 
     try {
-        const res = await fetch(PLACE_ORDER_URL, {
+        const res  = await fetch(PLACE_ORDER_URL, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": "Bearer " + ID_TOKEN
-            },
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + ID_TOKEN },
             body: JSON.stringify(payload)
         });
-
         const data = await res.json();
 
         if (res.status === 401) {
@@ -469,29 +567,32 @@ document.getElementById("place-order-btn").addEventListener("click", async () =>
             window.location.href = LOGIN_URL;
             return;
         }
-
         if (res.ok) {
-            alert("Order placed successfully! Order ID: " + data.order_id);
+            alert("Order placed! Order ID: " + data.order_id);
             window.location.href = "/store/order-confirmation/?id=" + data.order_id;
         } else {
             alert("Order failed: " + (data.error || data.message || "Unknown error"));
         }
-
     } catch (err) {
-        console.error("Place order error:", err);
+        console.error(err);
         alert("Something went wrong while placing your order.");
     } finally {
-        btn.disabled  = false;
-        btn.innerText = "Place Order";
+        btn.disabled    = false;
+        btn.textContent = "Place order";
     }
 });
 
-// ── Re-calculate when country OR city changes ─────────────────────────────────
+// ── Event listeners ───────────────────────────────────────────────────────────
+
 document.getElementById("country").addEventListener("change", loadOrderSummary);
 document.getElementById("city").addEventListener("change", loadOrderSummary);
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-autoFillLocation();
-loadOrderSummary();
+
+(async () => {
+    await loadOffers();
+    autoFillLocation();
+    await loadOrderSummary();
+})();
 </script>
 {% endblock %}

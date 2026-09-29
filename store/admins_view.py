@@ -27,7 +27,7 @@ def admin_dashboard(request):
 
 
 # =========================
-# HELPER: ENSURE BUCKET EXISTS
+# HELPER: ENSURE BUCKET EXISTS and check
 # =========================
 def ensure_bucket_exists():
     s3 = boto3.client("s3", region_name=REGION)

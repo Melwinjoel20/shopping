@@ -17,7 +17,7 @@ BUCKET     = settings.S3_BUCKET
 GLUE_JOB   = "weekly-sales-analytics"
 OUTPUT_KEY = "analytics/weekly_sales_output.json"
 
-#this is the test comment
+#this is the test comment2
 # =========================
 # ADMIN DASHBOARD and changes
 # =========================

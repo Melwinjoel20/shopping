@@ -19,7 +19,7 @@ OUTPUT_KEY = "analytics/weekly_sales_output.json"
 
 
 # =========================
-# ADMIN DASHBOARD
+# ADMIN DASHBOARD and changes
 # =========================
 @admin_required
 def admin_dashboard(request):

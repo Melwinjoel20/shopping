@@ -70,6 +70,7 @@ def upload_product_image_to_s3(file_obj):
         print("S3 Upload Error:", e)
         return None
 
+#this comment is for testing
 
 # =========================
 # ADD PRODUCT
